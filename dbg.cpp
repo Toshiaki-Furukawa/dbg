@@ -15,11 +15,11 @@ struct command {
   std::vector<std::string> args;
 } typedef command_t;
 
-
 class Breakpoint {
     unsigned long addr;
     unsigned long data;
     bool active; 
+
 public:
   Breakpoint(unsigned long bp_addr, unsigned long orig_data) : addr(bp_addr), data(orig_data), active(true)
   {}
@@ -46,6 +46,8 @@ public:
   }
 };
 
+
+
 class Debugger {
   std::vector<Breakpoint> breakpoints;
   user_regs_struct regs;
@@ -53,7 +55,14 @@ class Debugger {
   int status;
   siginfo_t signal;
 
+  /*void restore(Breakpoint bp) {
+    ptrace(PTRACE_POKEDATA, proc, bp.get_addr(), bp.get_data());
+  }*/
+  
   void enable_breakpoint(Breakpoint *bp) {
+    //unsigned long data = ptrace(PTRACE_PEEKDATA, proc, addr, NULL);
+    //std::cout << "data at: " << std::hex << data << std::endl;
+    //unsigned long new_data = ((data & ~0xff) | 0xcc); // set breakpoint
     ptrace(PTRACE_POKEDATA, proc, bp->get_addr(), bp->get_mod_data());
     bp->enable();
   }
@@ -187,6 +196,16 @@ public:
     breakpoints.push_back(Breakpoint(addr, data)); 
   }
 
+  void delete_breakpoint(uint32_t idx) {
+    if (idx > breakpoints.size()) {
+      return;
+    }
+
+    disable_breakpoint(&(breakpoints[idx]));
+    
+    breakpoints.erase(breakpoints.begin()+idx); 
+  }
+
   void enable_bp(unsigned int idx) {
     enable_breakpoint(&(breakpoints[idx]));
   }
@@ -220,6 +239,8 @@ command_t get_cmd() {
   if (cmd == "") {
     return ret;
   }
+
+  //std::vector<std::string> args;
 
   std::size_t start = cmd.find_first_not_of(' ', 0);
   std::size_t end = cmd.find(' ', start);
@@ -256,6 +277,7 @@ int main() {
         std::cout << "error occured. Aborting" << std::endl;
         exit(-1);
       }
+      //std::cout << ret_sig << std::endl;
     } else if (cmd.cmd == "r") {
       dbg.reset();
     } else if (cmd.cmd == "b") {
@@ -271,14 +293,20 @@ int main() {
       dbg.single_step(); 
       dbg.print_regs();
     
-    } else if (cmd.cmd == "list") {
+    } else if (cmd.cmd == "i") {
       if (!cmd.args.empty()) {
         if (cmd.args[0] == "bps") {
           dbg.list_breakpoints();
+        } else if (cmd.args[0] == "regs") {
+          dbg.print_regs();
         }
       }
-    } else if (cmd.cmd == "regs") {
-      dbg.print_regs();
+    } else if (cmd.cmd == "d") {
+      if (!cmd.args.empty()) {
+        uint32_t idx = atoi(cmd.args[0].c_str());
+        dbg.delete_breakpoint(idx);
+        std::cout << "deleted breakpoint nr.: " << idx << std::endl;
+      }
     } else if (cmd.cmd == "quit") {
       break;
     }
