@@ -193,7 +193,7 @@ public:
     enable_breakpoint(&bp);
    
 
-    breakpoints.push_back(Breakpoint(addr, data)); 
+    breakpoints.emplace_back(Breakpoint(addr, data)); 
   }
 
   void delete_breakpoint(uint32_t idx) {
@@ -249,7 +249,7 @@ command_t get_cmd() {
     
   while ((start = cmd.find_first_not_of(' ', end)) != std::string::npos) {
     end = cmd.find(' ', start);
-    ret.args.push_back(cmd.substr(start, end-start));
+    ret.args.emplace_back(cmd.substr(start, end-start));
   }
   
   return ret;
