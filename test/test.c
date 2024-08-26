@@ -6,7 +6,6 @@ int main() {
   int z;
   printf("hello\n");
   z = x + y;
-  __asm__("int3");
   printf("%d\n", z);
   return 0;
 }
