@@ -174,14 +174,3 @@ public:
   }
 };
 
-int main() {
-  /*
-  ELF elf("test/test");
- 
-  elf.print_filename(); 
-  //elf.print_sections();
-
-  std::cout << std::hex << (uint64_t)elf.get_bit_at_addr(0x40115c) << std::endl;
-  */
-}
-

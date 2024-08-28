@@ -10,18 +10,21 @@
 #include <vector>
 #include <signal.h>
 
+#include "elf.cpp"
+
 struct command {
   std::string cmd;
   std::vector<std::string> args;
 } typedef command_t;
 
 class Breakpoint {
-    unsigned long addr;
-    unsigned long data;
+    uint64_t addr;
+    //unsigned long data;
+    uint8_t data;
     bool active; 
 
 public:
-  Breakpoint(unsigned long bp_addr, unsigned long orig_data) : addr(bp_addr), data(orig_data), active(true)
+  Breakpoint(uint64_t bp_addr, uint8_t orig_data) : addr(bp_addr), data(orig_data), active(true)
   {}
   
   unsigned long get_addr() const {
@@ -54,6 +57,9 @@ class Debugger {
   pid_t proc;
   int status;
   siginfo_t signal;
+  ELF elf;
+  const char *filename;
+  bool is_running;
 
   /*void restore(Breakpoint bp) {
     ptrace(PTRACE_POKEDATA, proc, bp.get_addr(), bp.get_data());
@@ -63,12 +69,26 @@ class Debugger {
     //unsigned long data = ptrace(PTRACE_PEEKDATA, proc, addr, NULL);
     //std::cout << "data at: " << std::hex << data << std::endl;
     //unsigned long new_data = ((data & ~0xff) | 0xcc); // set breakpoint
-    ptrace(PTRACE_POKEDATA, proc, bp->get_addr(), bp->get_mod_data());
+    if (!is_running) {
+      return;
+    }
+
+    auto data = ptrace(PTRACE_PEEKDATA, proc, bp->get_addr(), NULL);
+    auto mod_data = ((data & ~0xff) | 0xcc);
+    
+    ptrace(PTRACE_POKEDATA, proc, bp->get_addr(), mod_data);
     bp->enable();
   }
 
   void disable_breakpoint(Breakpoint *bp) {
-    ptrace(PTRACE_POKEDATA, proc, bp->get_addr(), bp->get_data());
+    if (!is_running) {
+      return;
+    }
+    auto data = ptrace(PTRACE_PEEKDATA, proc, bp->get_addr(), NULL);
+    auto orig_data = ((data & ~0xff) | bp->get_data());
+
+    ptrace(PTRACE_POKEDATA, proc, bp->get_addr(), orig_data);
+
     bp->disable(); 
   }
 
@@ -81,7 +101,7 @@ class Debugger {
   }
 
 public:
-  Debugger () {
+  Debugger (const char *filename) : filename(filename), elf(filename) {
     proc = fork();
     if (proc == -1) {
       std::cout << "Error while forking" << std::endl;  
@@ -93,10 +113,11 @@ public:
 
       ptrace(PTRACE_TRACEME, proc, NULL, NULL);
 
-      execl("test/test", "test/test", NULL, NULL);
+      execl(filename, filename, NULL, NULL);
     } else {
       waitpid(proc, &status, 0);
       ptrace(PTRACE_SETOPTIONS, proc, NULL, PTRACE_O_EXITKILL);
+      is_running = true;
       return;
     }
   }
@@ -124,6 +145,7 @@ public:
     } else {
       waitpid(proc, &status, 0);
       ptrace(PTRACE_SETOPTIONS, proc, NULL, PTRACE_O_EXITKILL);
+      is_running = true;
       update_regs();
 
       for (Breakpoint bp: breakpoints) {
@@ -139,6 +161,7 @@ public:
 
     waitpid(proc, &status, 0);
     if (WIFEXITED(status)) {
+      is_running = false;
       return 0;
     }
     
@@ -187,11 +210,13 @@ public:
       }
     }
  
-    unsigned long data = ptrace(PTRACE_PEEKDATA, proc, addr, NULL);
+    //unsigned long data = ptrace(PTRACE_PEEKDATA, proc, addr, NULL);
+    auto data = elf.get_bit_at_addr(addr);
+
+    //uint8_t data_to_save = static_cast<uint8_t>(data & 0xff);
 
     Breakpoint bp = Breakpoint(addr, data);
     enable_breakpoint(&bp);
-   
 
     breakpoints.emplace_back(Breakpoint(addr, data)); 
   }
@@ -259,7 +284,7 @@ int main() {
   // setup
 
   // run
-  Debugger dbg = Debugger();
+  Debugger dbg = Debugger("test/test");
   int ret_sig = 1;
  
   while (true) {
