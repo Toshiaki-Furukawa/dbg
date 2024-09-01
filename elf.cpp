@@ -51,8 +51,9 @@ class ELF {
 private:
   const char* filename;
   char *content; 
+  int machine;            // stores machine or -1 if the file could not be read
+  size_t content_size;
   std::vector<Section> sections;
-  unsigned short machine;
  
   void read_sections_x86_64() {
     auto elf_header = reinterpret_cast<Elf64_Ehdr*>(content);
@@ -92,36 +93,45 @@ private:
  
 public:
   ELF(const char* filename): filename(filename){
+    content = NULL;
+    machine = -1;
+    
     std::ifstream elf_file(filename, std::ios::binary | std::ios::ate);
+    
     if (!elf_file.is_open()) {
       std::cout << "file does not exist" << std::endl;
       return;
     }
+    
+
  
     elf_file.seekg(0, std::ios::end); 
-    auto size = elf_file.tellg();
+    content_size = elf_file.tellg();
     elf_file.seekg(0, std::ios::beg);
    
-    // rought check if to make sure file is large enough to be ELF 
-    if (size < 16+3) {
+    // rough check if to make sure file is large enough to be ELF 
+    if (content_size < 16+3) {
       std::cout << "size to small" << std::endl;
       return;
     } 
  
-    content = new char[size];
+  
+    content = new char[content_size];
  
-    std::cout << size << std::endl; 
-    if (!elf_file.read(content, size)) {
+    std::cout << content_size << std::endl; 
+    if (!elf_file.read(content, content_size)) {
       std::cout << "something went wrong reading file" << std::endl;
       return;
     }
+    
+
  
     // checking magic bytes 
     if (!(content[0] == 0x7f &&
           content[1] == 'E' &&
           content[2] == 'L' &&
           content[3] == 'F')) {
-      std::cout << "File is not ELF";
+      std::cout << "File is not ELF" << std::endl;
       return;     
     }
 
@@ -145,7 +155,17 @@ public:
   }
 
   ~ELF() {
-    delete[] content;
+    if (content != NULL) {
+      delete[] content;
+    }
+  }
+  
+  int get_machine() {
+    return machine;
+  }
+  
+  const char* get_filename() {
+    return filename;
   }
 
   std::vector<Instruction> disassemble_words(uint64_t addr, size_t n) {
@@ -160,6 +180,11 @@ public:
     }
 
     size_t size = n*4;
+  
+
+    if (size + idx >= content_size) {
+      std::cout << "Too many words." << std::endl;
+    }
   
     switch (machine) {
       case EM_X86_64:
@@ -185,12 +210,13 @@ public:
     return -1;
   }
 
-  int get_bit_at_addr(uint64_t addr) {
+  char get_bit_at_addr(uint64_t addr) {
     auto idx =  get_idx_from_addr(addr);
     if (idx < 0) {
       std::cout << "Not a valid address";
       return -1;
     }
+
     return content[idx];
   }
 
