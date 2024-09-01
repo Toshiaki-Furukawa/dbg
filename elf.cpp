@@ -93,6 +93,10 @@ private:
 public:
   ELF(const char* filename): filename(filename){
     std::ifstream elf_file(filename, std::ios::binary | std::ios::ate);
+    if (!elf_file.is_open()) {
+      std::cout << "file does not exist" << std::endl;
+      return;
+    }
  
     elf_file.seekg(0, std::ios::end); 
     auto size = elf_file.tellg();
@@ -100,7 +104,7 @@ public:
    
     // rought check if to make sure file is large enough to be ELF 
     if (size < 16+3) {
-      std::cout << "size to small";
+      std::cout << "size to small" << std::endl;
       return;
     } 
  
