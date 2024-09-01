@@ -1,8 +1,9 @@
 CC = g++
+LIBNAME = capstone
 
 all:
-	$(CC) dbg.cpp -o dbg
-	gcc test/test.c -o test/test
+	$(CC) dbg.cpp -o dbg -l $(LIBNAME) -Wall
+	gcc test/test.c -o test/test 
 	
 test:
 	gcc test/test.c -o test/test

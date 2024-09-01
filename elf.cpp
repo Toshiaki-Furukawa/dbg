@@ -6,6 +6,7 @@
 #include <fstream>
 #include <vector>
 #include <iostream>
+#include "disass.cpp"
 
 class Section {
 private:
@@ -71,7 +72,7 @@ private:
     }
   }
 
-  void read_sections_m32() {
+  void read_sections_i386() {
     auto elf_header = reinterpret_cast<Elf32_Ehdr*>(content);
     // optional to get name of section
     auto shdr_string = reinterpret_cast<Elf32_Shdr*>(&content[elf_header->e_shoff + (elf_header->e_shstrndx * elf_header->e_shentsize)]);
@@ -131,7 +132,7 @@ public:
         break;
       case EM_386:
         std::cout << "32 bit ELF" << std::endl; 
-        read_sections_m32();
+        read_sections_i386();
         break;
       default:
         std::cout << "Format not supported";
@@ -143,7 +144,34 @@ public:
     delete[] content;
   }
 
-  uint64_t get_idx_from_addr(uint64_t addr) {
+  std::vector<Instruction> disassemble_words(uint64_t addr, size_t n) {
+    //TODO:  check size valid 
+    std::vector<Instruction> instructions;
+
+    auto idx = get_idx_from_addr(addr);
+
+    if (idx == -1) {
+      std::cout << "Not a valid address" << std::endl;
+      return instructions;
+    }
+
+    size_t size = n*4;
+  
+    switch (machine) {
+      case EM_X86_64:
+        instructions = disassemble_x86_64(addr, reinterpret_cast<const uint8_t*>(&(content[idx])), size);
+        break;
+      case EM_386:
+        instructions = disassemble_i386(addr, reinterpret_cast<const uint8_t*>(&(content[idx])),  size);
+        break;
+      default:
+        std::cout << "Architecture not supported";
+        return instructions;
+    }
+    return instructions; 
+  }
+
+  int get_idx_from_addr(uint64_t addr) {
     // find correct section
     for (auto s: sections) {
       if (s.contains(addr)) {
@@ -153,8 +181,8 @@ public:
     return -1;
   }
 
-  uint8_t get_bit_at_addr(uint64_t addr) {
-    uint64_t idx =  get_idx_from_addr(addr);
+  int get_bit_at_addr(uint64_t addr) {
+    auto idx =  get_idx_from_addr(addr);
     if (idx < 0) {
       std::cout << "Not a valid address";
       return -1;
@@ -173,4 +201,14 @@ public:
     }
   }
 };
+
+/*
+int main() {
+  ELF elf("test/test_64");
+  
+  auto instructions = elf.disassemble_words(0x401137, 9);
+  for (auto instr : instructions) {
+    std::cout << instr.str() << std::endl;
+  }
+}*/
 

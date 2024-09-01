@@ -27,15 +27,15 @@ public:
   Breakpoint(uint64_t bp_addr, uint8_t orig_data) : addr(bp_addr), data(orig_data), active(true)
   {}
   
-  unsigned long get_addr() const {
+  uint64_t get_addr() const {
     return addr;
   } 
   
-  unsigned long get_data() const {
+  uint64_t get_data() const {
     return data;
   }
 
-  unsigned long get_mod_data() const {
+  uint64_t get_mod_data() const {
     unsigned long new_data = ((data & ~0xff) | 0xcc);
     return new_data;
   }
@@ -57,8 +57,9 @@ class Debugger {
   pid_t proc;
   int status;
   siginfo_t signal;
-  ELF elf;
+
   const char *filename;
+  ELF elf;
   bool is_running;
 
   /*void restore(Breakpoint bp) {
@@ -239,6 +240,22 @@ public:
     disable_breakpoint(&(breakpoints[idx]));
   }
 
+  void disassemble(uint64_t addr, size_t n) {
+    auto instructions = elf.disassemble_words(addr, n);
+    std::string prefix = "   ";
+
+    for (auto instr : instructions) {
+      for (auto bp : breakpoints) {
+        if (bp.get_addr() == instr.address()) {
+          prefix.assign(" * ");
+          break;
+        } 
+      }
+      std::cout << prefix << instr.str() << std::endl;
+      prefix.assign("   ");
+    }
+  }
+
   void single_step() {
     if (ptrace(PTRACE_SINGLESTEP, proc, NULL, NULL)) {
       std::cout << "single step failed" << std::endl;
@@ -249,7 +266,7 @@ public:
   }
 
   void list_breakpoints() {
-    for (int i = 0; i < breakpoints.size(); i++) {
+    for (size_t i = 0; i < breakpoints.size(); i++) {
       std::cout << "brekpoint nr. " << i << " at " << std::hex << breakpoints[i].get_addr() << std::endl;
     }
   }
@@ -308,7 +325,7 @@ int main() {
     } else if (cmd.cmd == "b") {
       if (!cmd.args.empty()) {
         const char *hex_addr = cmd.args[0].c_str();
-        unsigned long bp_addr = strtol(hex_addr, NULL, 16);
+        uint64_t bp_addr = strtol(hex_addr, NULL, 16);
              
         dbg.set_breakpoint(bp_addr);
 
@@ -326,12 +343,19 @@ int main() {
           dbg.print_regs();
         }
       }
-    } else if (cmd.cmd == "d") {
+    } else if (cmd.cmd == "D") {
       if (!cmd.args.empty()) {
         uint32_t idx = atoi(cmd.args[0].c_str());
         dbg.delete_breakpoint(idx);
         std::cout << "deleted breakpoint nr.: " << idx << std::endl;
       }
+    } else if (cmd.cmd == "dw") {
+      if (cmd.args.size() == 2) {
+        size_t n = std::stoi(cmd.args[1].c_str());
+        uint64_t addr =  std::strtol(cmd.args[0].c_str(), NULL, 16);
+        
+        dbg.disassemble(addr, n);
+      } 
     } else if (cmd.cmd == "quit") {
       break;
     }
