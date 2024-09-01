@@ -52,25 +52,17 @@ public:
 
 
 class Debugger {
+  const char *filename;
+  ELF elf;
+
   std::vector<Breakpoint> breakpoints;
   user_regs_struct regs;
   pid_t proc;
   int status;
   siginfo_t signal;
-
-  const char *filename;
-  ELF elf;
-  bool is_running;
-
-  /*void restore(Breakpoint bp) {
-    ptrace(PTRACE_POKEDATA, proc, bp.get_addr(), bp.get_data());
-  }*/
   
   void enable_breakpoint(Breakpoint *bp) {
-    //unsigned long data = ptrace(PTRACE_PEEKDATA, proc, addr, NULL);
-    //std::cout << "data at: " << std::hex << data << std::endl;
-    //unsigned long new_data = ((data & ~0xff) | 0xcc); // set breakpoint
-    if (!is_running) {
+    if (WIFEXITED(status)) {
       return;
     }
 
@@ -82,7 +74,7 @@ class Debugger {
   }
 
   void disable_breakpoint(Breakpoint *bp) {
-    if (!is_running) {
+    if (WIFEXITED(status)) {
       return;
     }
     auto data = ptrace(PTRACE_PEEKDATA, proc, bp->get_addr(), NULL);
@@ -118,7 +110,6 @@ public:
     } else {
       waitpid(proc, &status, 0);
       ptrace(PTRACE_SETOPTIONS, proc, NULL, PTRACE_O_EXITKILL);
-      is_running = true;
       return;
     }
   }
@@ -142,11 +133,11 @@ public:
 
       ptrace(PTRACE_TRACEME, proc, NULL, NULL);
 
-      execl("test/test", "test/test", NULL, NULL);
+      execl(filename, filename, NULL, NULL);
     } else {
       waitpid(proc, &status, 0);
       ptrace(PTRACE_SETOPTIONS, proc, NULL, PTRACE_O_EXITKILL);
-      is_running = true;
+
       update_regs();
 
       for (Breakpoint bp: breakpoints) {
@@ -162,7 +153,6 @@ public:
 
     waitpid(proc, &status, 0);
     if (WIFEXITED(status)) {
-      is_running = false;
       return 0;
     }
     
@@ -211,10 +201,7 @@ public:
       }
     }
  
-    //unsigned long data = ptrace(PTRACE_PEEKDATA, proc, addr, NULL);
     auto data = elf.get_bit_at_addr(addr);
-
-    //uint8_t data_to_save = static_cast<uint8_t>(data & 0xff);
 
     Breakpoint bp = Breakpoint(addr, data);
     enable_breakpoint(&bp);
@@ -282,8 +269,6 @@ command_t get_cmd() {
     return ret;
   }
 
-  //std::vector<std::string> args;
-
   std::size_t start = cmd.find_first_not_of(' ', 0);
   std::size_t end = cmd.find(' ', start);
 
@@ -297,11 +282,17 @@ command_t get_cmd() {
   return ret;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
   // setup
+  if (argc < 2) {
+    std::cout << "Usage: ./dbg filename" << std::endl;
+    return 0;
+  }
+
+  const char *filename = argv[1];
 
   // run
-  Debugger dbg = Debugger("test/test");
+  Debugger dbg = Debugger(filename);
   int ret_sig = 1;
  
   while (true) {
