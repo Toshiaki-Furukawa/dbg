@@ -54,9 +54,16 @@ private:
   int machine;            // stores machine or -1 if the file could not be read
   size_t content_size;
   std::vector<Section> sections;
+  // security features
+  bool is_pie; 
+  
  
   void read_sections_x86_64() {
     auto elf_header = reinterpret_cast<Elf64_Ehdr*>(content);
+
+    if (elf_header->e_type == ET_DYN) {
+      is_pie = true;
+    }
     // optional to get name of section
     auto shdr_string = reinterpret_cast<Elf64_Shdr*>(&content[elf_header->e_shoff + (elf_header->e_shstrndx * elf_header->e_shentsize)]);
 
@@ -75,6 +82,10 @@ private:
 
   void read_sections_i386() {
     auto elf_header = reinterpret_cast<Elf32_Ehdr*>(content);
+
+    if (elf_header->e_type == ET_DYN) {
+      is_pie = true;
+    }
     // optional to get name of section
     auto shdr_string = reinterpret_cast<Elf32_Shdr*>(&content[elf_header->e_shoff + (elf_header->e_shstrndx * elf_header->e_shentsize)]);
 
@@ -95,6 +106,7 @@ public:
   ELF(const char* filename): filename(filename){
     content = NULL;
     machine = -1;
+    is_pie = false;
     
     std::ifstream elf_file(filename, std::ios::binary | std::ios::ate);
     
@@ -218,6 +230,10 @@ public:
     }
 
     return content[idx];
+  }
+
+  bool pie() {
+    return is_pie;
   }
 
   // DEBUG FUNCTIONS

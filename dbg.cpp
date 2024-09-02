@@ -49,8 +49,6 @@ public:
   }
 };
 
-
-
 class Debugger {
   const char *filename;
   ELF elf;
@@ -60,16 +58,18 @@ class Debugger {
   pid_t proc;
   int status;
   siginfo_t signal;
-  
+
+  uint64_t base_addr;
+
   void enable_breakpoint(Breakpoint *bp) {
     if (WIFEXITED(status)) {
       return;
     }
 
-    auto data = ptrace(PTRACE_PEEKDATA, proc, bp->get_addr(), NULL);
+    auto data = ptrace(PTRACE_PEEKDATA, proc, base_addr + bp->get_addr(), NULL);
     auto mod_data = ((data & ~0xff) | 0xcc);
     
-    ptrace(PTRACE_POKEDATA, proc, bp->get_addr(), mod_data);
+    ptrace(PTRACE_POKEDATA, proc, base_addr + bp->get_addr(), mod_data);
     bp->enable();
   }
 
@@ -77,10 +77,10 @@ class Debugger {
     if (WIFEXITED(status)) {
       return;
     }
-    auto data = ptrace(PTRACE_PEEKDATA, proc, bp->get_addr(), NULL);
+    auto data = ptrace(PTRACE_PEEKDATA, proc, base_addr + bp->get_addr(), NULL);
     auto orig_data = ((data & ~0xff) | bp->get_data());
 
-    ptrace(PTRACE_POKEDATA, proc, bp->get_addr(), orig_data);
+    ptrace(PTRACE_POKEDATA, proc, base_addr + bp->get_addr(), orig_data);
 
     bp->disable(); 
   }
@@ -93,8 +93,32 @@ class Debugger {
     return 1;
   }
 
+  uint64_t read_vmmap_base() {
+    std::stringstream filename;
+    filename << "/proc/" << proc << "/maps"; 
+
+    std::ifstream vmmap_file(filename.str());
+
+    if (!vmmap_file.is_open()) {
+      std::cout << "could not open vmmaps file" << std::endl;
+      return 0;
+    }
+
+    std::string base_addr_str;
+    std::getline(vmmap_file, base_addr_str, ' ');
+    return std::stol(base_addr_str, NULL, 16);
+  }
+
 public:
   Debugger (const char *filename) : filename(filename), elf(filename) {
+    if (elf.pie()) {
+      std::cout << "File is PIE" << std::endl;
+    } else {
+      std::cout << "No PIE" << std::endl;
+    }
+
+    base_addr = 0;
+
     proc = fork();
     if (proc == -1) {
       std::cout << "Error while forking" << std::endl;  
@@ -110,6 +134,10 @@ public:
     } else {
       waitpid(proc, &status, 0);
       ptrace(PTRACE_SETOPTIONS, proc, NULL, PTRACE_O_EXITKILL);
+
+      if (elf.pie()) {
+        base_addr = read_vmmap_base();
+      }
       return;
     }
   }
@@ -121,7 +149,15 @@ public:
     if (WIFSIGNALED(status)) {
       std::cout << "tracee killed" << std::endl;
     }
+
+    if (elf.pie()) {
+      std::cout << "File is PIE" << std::endl;
+    } else {
+      std::cout << "No PIE" << std::endl;
+    }
    
+    base_addr = 0;
+
     proc = fork();
     if (proc == -1) {
       std::cout << "Error while forking new process" << std::endl;
@@ -137,6 +173,10 @@ public:
     } else {
       waitpid(proc, &status, 0);
       ptrace(PTRACE_SETOPTIONS, proc, NULL, PTRACE_O_EXITKILL);
+
+      if (elf.pie()) {
+        base_addr = read_vmmap_base();
+      }
 
       update_regs();
 
@@ -165,7 +205,7 @@ public:
 
     if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP) {
       for (Breakpoint bp: breakpoints) {
-        if (bp.get_addr() == regs.rip-1) {
+        if (bp.get_addr() == regs.rip-1 - base_addr) {
           disable_breakpoint(&bp);
           regs.rip -= 1;
 
