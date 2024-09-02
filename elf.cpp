@@ -80,12 +80,32 @@ private:
     }
   }
 
+  void read_symtab_i386(uint32_t strtab_offset, Elf32_Shdr *shdr) {
+    auto sym_table = reinterpret_cast<Elf32_Sym*>(&content[shdr->sh_offset]);
+    auto sym_count = static_cast<uint32_t>(shdr->sh_size)/sizeof(Elf32_Sym);
+
+    for (uint32_t i = 0; i < sym_count; i++ ) {
+    //for (const auto& sym : sym_table) {
+      auto name = reinterpret_cast<char *>(&(content[strtab_offset + sym_table[i].st_name]));
+
+      std::cout << std::hex << sym_table[i].st_value <<  "     " << sym_table[i].st_size << "    " << name << std::endl;
+    }
+
+  }
+
   void read_sections_i386() {
     auto elf_header = reinterpret_cast<Elf32_Ehdr*>(content);
 
     if (elf_header->e_type == ET_DYN) {
       is_pie = true;
     }
+
+    // Data for symbol table
+    Elf32_Shdr *symtab = NULL;
+    Elf32_Shdr *dynsym = NULL;
+    Elf32_Shdr *strtab = NULL;
+    Elf32_Shdr *dynstr = NULL;
+
     // optional to get name of section
     auto shdr_string = reinterpret_cast<Elf32_Shdr*>(&content[elf_header->e_shoff + (elf_header->e_shstrndx * elf_header->e_shentsize)]);
 
@@ -95,11 +115,42 @@ private:
 
       // read section table entry 
       auto *shdr = reinterpret_cast<Elf32_Shdr*>(&content[sht_e_offset]);
+
+      auto name = static_cast<std::string>((&content[shdr_string->sh_offset + shdr->sh_name]));
+      //auto name_string = static_cast<std::string>(name);
+
+      // check if we found symbol table
+      switch (shdr->sh_type) {
+        case SHT_SYMTAB:
+          symtab = shdr;
+          break;
+        case SHT_DYNSYM:
+          dynsym = shdr;
+          break;
+        case SHT_STRTAB:
+          // TODO: identify right symtab
+          if (name == ".strtab") {
+            strtab = shdr;
+          } else if (name == ".dynstr") {
+            dynstr = shdr;
+          }
+          break;
+       default:
+          break;
+      }
+
       sections.emplace_back(Section(static_cast<uint32_t>(shdr->sh_addr), 
                                     static_cast<uint32_t>(shdr->sh_offset), 
                                     static_cast<uint32_t>(shdr->sh_size),
                                     reinterpret_cast<char *>((&content[shdr_string->sh_offset + shdr->sh_name]))));
     }
+
+    if (symtab != NULL && strtab != NULL) {
+      read_symtab_i386(strtab->sh_offset, symtab);
+    } else if (dynsym != NULL && dynstr != NULL) {
+      read_symtab_i386(dynstr->sh_offset, dynsym);
+    }
+
   }
  
 public:
@@ -248,13 +299,14 @@ public:
   }
 };
 
-/*
 int main() {
-  ELF elf("test/test_64");
-  
-  auto instructions = elf.disassemble_words(0x401137, 9);
+  ELF elf("examples/test_32");
+
+  elf.print_sections(); 
+ 
+  /*auto instructions = elf.disassemble_words(0x401137, 9);
   for (auto instr : instructions) {
     std::cout << instr.str() << std::endl;
-  }
-}*/
+  }*/
+}
 
