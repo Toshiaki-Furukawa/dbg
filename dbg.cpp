@@ -95,6 +95,12 @@ class Debugger {
 
 public:
   Debugger (const char *filename) : filename(filename), elf(filename) {
+    if (elf.is_pie()) {
+      std::cout << "File is PIE" << std::endl;
+    } else {
+      std::cout << "No PIE" << std::endl;
+    }
+
     proc = fork();
     if (proc == -1) {
       std::cout << "Error while forking" << std::endl;  
