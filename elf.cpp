@@ -398,18 +398,3 @@ public:
     }
   }
 };
-
-/*
-int main() {
-  ELF elf("examples/test_64");
-
-  //elf.print_sections(); 
-  elf.print_symtab();
-  uint64_t addr = elf.get_symbol_size("main");
-
-  std::cout << "main at: " << std::dec << addr << std::endl;    
-  auto instructions = elf.disassemble_words(0x401137, 9);
-  for (auto instr : instructions) {
-    std::cout << instr.str() << std::endl;
-  }
-}*/
