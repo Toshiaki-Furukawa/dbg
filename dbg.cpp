@@ -12,14 +12,19 @@
 
 #include "elf.cpp"
 
+enum disas_mode {
+  DISAS_MODE_WORD,
+  DISAS_MODE_BYTE
+};
+
 struct command {
   std::string cmd;
   std::vector<std::string> args;
 } typedef command_t;
 
 class Breakpoint {
+private:
     uint64_t addr;
-    //unsigned long data;
     uint8_t data;
     bool active; 
 
@@ -50,6 +55,7 @@ public:
 };
 
 class Debugger {
+private:
   const char *filename;
   ELF elf;
 
@@ -227,10 +233,10 @@ public:
   }
 
   void print_regs() {
-    std::cout << "rsp: " << std::hex << regs.rsp << std::endl;
-    std::cout << "rax: " << std::hex << regs.rax << std::endl;
-    std::cout << "rbp: " << std::hex << regs.rbp << std::endl;
-    std::cout << "rip: " << std::hex << regs.rip << std::endl;
+    std::cout << "rsp: 0x" << std::hex << regs.rsp << std::endl;
+    std::cout << "rax: 0x" << std::hex << regs.rax << std::endl;
+    std::cout << "rbp: 0x" << std::hex << regs.rbp << std::endl;
+    std::cout << "rip: 0x" << std::hex << regs.rip << std::endl;
   }
 
 
@@ -250,7 +256,7 @@ public:
   }
 
   void delete_breakpoint(uint32_t idx) {
-    if (idx > breakpoints.size()) {
+    if (idx >= breakpoints.size()) {
       return;
     }
 
@@ -267,11 +273,28 @@ public:
     disable_breakpoint(&(breakpoints[idx]));
   }
 
-  void disassemble(uint64_t addr, size_t n) {
-    auto instructions = elf.disassemble_words(addr, n);
+  void disassemble(uint64_t addr, size_t n, disas_mode mode) {
+    std::vector<Instruction> instructions;
+
+    switch (mode) {
+      case DISAS_MODE_WORD:
+        instructions = elf.disassemble_words(addr, n);
+        break;
+      case DISAS_MODE_BYTE:
+        instructions = elf.disassemble_bytes(addr, n);
+        break;
+      default: 
+        std::cout << "[Warning] No valid mode for disassembly" << std::endl;
+        instructions = elf.disassemble_bytes(addr, n);
+        break;
+    }
+
     std::string prefix = "   ";
 
     for (auto instr : instructions) {
+      if (instr.address() == regs.rip) {
+        prefix.assign(" > ");
+      }
       for (auto bp : breakpoints) {
         if (bp.get_addr() == instr.address()) {
           prefix.assign(" * ");
@@ -283,7 +306,19 @@ public:
     }
   }
 
+  uint64_t get_symbol_addr(std::string sym) {
+    return elf.get_symbol_addr(sym);
+  }
+
+  uint32_t get_symbol_size(std::string sym) {
+    return elf.get_symbol_size(sym);
+  }
+
   void single_step() {
+    if (WIFEXITED(status)) {
+      return;
+    }
+
     if (ptrace(PTRACE_SINGLESTEP, proc, NULL, NULL)) {
       std::cout << "single step failed" << std::endl;
       return;
@@ -296,6 +331,14 @@ public:
     for (size_t i = 0; i < breakpoints.size(); i++) {
       std::cout << "brekpoint nr. " << i << " at " << std::hex << breakpoints[i].get_addr() << std::endl;
     }
+  }
+
+  void print_symbols() {
+    elf.print_symtab();
+  }
+
+  void print_sections() {
+    elf.print_sections();
   }
 };
 
@@ -343,14 +386,12 @@ int main(int argc, char *argv[]) {
       ret_sig = dbg.cont();
       if (ret_sig == 0) {
         std::cout << "program exited.." << std::endl;
-        //return 0;
       } else if (ret_sig == 1) {
         std::cout << "hit breakpoint.." << std::endl;
       } else if (ret_sig == -1) {
         std::cout << "error occured. Aborting" << std::endl;
         exit(-1);
       }
-      //std::cout << ret_sig << std::endl;
     } else if (cmd.cmd == "r") {
       dbg.reset();
     } else if (cmd.cmd == "b") {
@@ -372,6 +413,10 @@ int main(int argc, char *argv[]) {
           dbg.list_breakpoints();
         } else if (cmd.args[0] == "regs") {
           dbg.print_regs();
+        } else if (cmd.args[0] == "symbols" || cmd.args[0] == "sym" || cmd.args[0] == "functions") {
+          dbg.print_symbols();
+        } else if (cmd.args[0] == "sections" || cmd.args[0] == "sec") {
+          dbg.print_sections();
         }
       }
     } else if (cmd.cmd == "D") {
@@ -385,8 +430,26 @@ int main(int argc, char *argv[]) {
         size_t n = std::stoi(cmd.args[1].c_str());
         uint64_t addr =  std::strtol(cmd.args[0].c_str(), NULL, 16);
         
-        dbg.disassemble(addr, n);
+        dbg.disassemble(addr, n, DISAS_MODE_WORD);
       } 
+    } else if (cmd.cmd == "db") {
+      if (cmd.args.size() == 2) {
+        size_t n = std::stoi(cmd.args[1].c_str());
+        uint64_t addr =  std::strtol(cmd.args[0].c_str(), NULL, 16);
+        
+        dbg.disassemble(addr, n, DISAS_MODE_BYTE);
+      }
+    } else if (cmd.cmd == "ds") {
+      if (cmd.args.size() == 1) {
+        std::string symbol = cmd.args[0];
+        uint64_t addr = dbg.get_symbol_addr(symbol);
+        uint32_t size = dbg.get_symbol_size(symbol);
+        std::cout << symbol << " at: 0x" <<  std::hex << addr << std::endl;
+
+        if (addr != 0) {
+          dbg.disassemble(addr, size, DISAS_MODE_BYTE); 
+        }
+      }
     } else if (cmd.cmd == "quit") {
       break;
     }
