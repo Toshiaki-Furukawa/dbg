@@ -82,12 +82,11 @@ private:
   int machine;            // stores machine or -1 if the file could not be read
   size_t content_size;
   std::vector<Section> sections;
+  std::map<std::string, Symbol> symtab;
   // security features
   bool is_pie; 
-  std::map<std::string, Symbol> symtab;
  
   // RESDING SYMTABLE 
-  
   void read_symtab_i386(uint32_t strtab_offset, Elf32_Shdr *shdr) {
     auto sym_table = reinterpret_cast<Elf32_Sym*>(&content[shdr->sh_offset]);
     auto sym_count = static_cast<uint32_t>(shdr->sh_size)/sizeof(Elf32_Sym);
@@ -134,7 +133,6 @@ private:
       auto *shdr = reinterpret_cast<Elf64_Shdr*>(&content[sht_e_offset]);
 
       auto name = static_cast<std::string>((&content[shdr_string->sh_offset + shdr->sh_name]));
-      //auto name_string = static_cast<std::string>(name);
 
       // check if we found symbol table
       switch (shdr->sh_type) {
@@ -195,7 +193,6 @@ private:
       auto *shdr = reinterpret_cast<Elf32_Shdr*>(&content[sht_e_offset]);
 
       auto name = static_cast<std::string>((&content[shdr_string->sh_offset + shdr->sh_name]));
-      //auto name_string = static_cast<std::string>(name);
 
       // check if we found symbol table
       switch (shdr->sh_type) {
@@ -339,35 +336,6 @@ public:
 
   std::vector<Instruction> disassemble_words(uint64_t addr, size_t n) {
     return disassemble_bytes(addr, n*4);
-    /* 
-    std::vector<Instruction> instructions;
-
-    auto idx = get_idx_from_addr(addr);
-
-    if (idx == -1) {
-      std::cout << "Not a valid address" << std::endl;
-      return instructions;
-    }
-
-    size_t size = n*4;
-  
-
-    if (size + idx >= content_size) {
-      std::cout << "Too many words." << std::endl;
-    }
-  
-    switch (machine) {
-      case EM_X86_64:
-        instructions = disassemble_x86_64(addr, reinterpret_cast<const uint8_t*>(&(content[idx])), size);
-        break;
-      case EM_386:
-        instructions = disassemble_i386(addr, reinterpret_cast<const uint8_t*>(&(content[idx])),  size);
-        break;
-      default:
-        std::cout << "Architecture not supported";
-        return instructions;
-    }
-    return instructions;*/
   }
 
 

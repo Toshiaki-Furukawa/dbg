@@ -23,8 +23,8 @@ struct command {
 } typedef command_t;
 
 class Breakpoint {
+private:
     uint64_t addr;
-    //unsigned long data;
     uint8_t data;
     bool active; 
 
@@ -55,6 +55,7 @@ public:
 };
 
 class Debugger {
+private:
   const char *filename;
   ELF elf;
 
@@ -274,7 +275,7 @@ public:
 
   void disassemble(uint64_t addr, size_t n, disas_mode mode) {
     std::vector<Instruction> instructions;
-    //auto instructions = elf.disassemble_words(addr, n);
+
     switch (mode) {
       case DISAS_MODE_WORD:
         instructions = elf.disassemble_words(addr, n);
@@ -385,14 +386,12 @@ int main(int argc, char *argv[]) {
       ret_sig = dbg.cont();
       if (ret_sig == 0) {
         std::cout << "program exited.." << std::endl;
-        //return 0;
       } else if (ret_sig == 1) {
         std::cout << "hit breakpoint.." << std::endl;
       } else if (ret_sig == -1) {
         std::cout << "error occured. Aborting" << std::endl;
         exit(-1);
       }
-      //std::cout << ret_sig << std::endl;
     } else if (cmd.cmd == "r") {
       dbg.reset();
     } else if (cmd.cmd == "b") {
