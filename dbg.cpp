@@ -12,6 +12,11 @@
 
 #include "elf.cpp"
 
+enum disas_mode {
+  DISAS_MODE_WORD,
+  DISAS_MODE_BYTE
+};
+
 struct command {
   std::string cmd;
   std::vector<std::string> args;
@@ -267,8 +272,22 @@ public:
     disable_breakpoint(&(breakpoints[idx]));
   }
 
-  void disassemble(uint64_t addr, size_t n) {
-    auto instructions = elf.disassemble_words(addr, n);
+  void disassemble(uint64_t addr, size_t n, disas_mode mode) {
+    std::vector<Instruction> instructions;
+    //auto instructions = elf.disassemble_words(addr, n);
+    switch (mode) {
+      case DISAS_MODE_WORD:
+        instructions = elf.disassemble_words(addr, n);
+        break;
+      case DISAS_MODE_BYTE:
+        instructions = elf.disassemble_bytes(addr, n);
+        break;
+      default: 
+        std::cout << "[Warning] No valid mode for disassembly" << std::endl;
+        instructions = elf.disassemble_bytes(addr, n);
+        break;
+    }
+
     std::string prefix = "   ";
 
     for (auto instr : instructions) {
@@ -281,6 +300,14 @@ public:
       std::cout << prefix << instr.str() << std::endl;
       prefix.assign("   ");
     }
+  }
+
+  uint64_t get_symbol_addr(std::string sym) {
+    return elf.get_symbol_addr(sym);
+  }
+
+  uint32_t get_symbol_size(std::string sym) {
+    return elf.get_symbol_size(sym);
   }
 
   void single_step() {
@@ -385,8 +412,26 @@ int main(int argc, char *argv[]) {
         size_t n = std::stoi(cmd.args[1].c_str());
         uint64_t addr =  std::strtol(cmd.args[0].c_str(), NULL, 16);
         
-        dbg.disassemble(addr, n);
+        dbg.disassemble(addr, n, DISAS_MODE_WORD);
       } 
+    } else if (cmd.cmd == "db") {
+      if (cmd.args.size() == 2) {
+        size_t n = std::stoi(cmd.args[1].c_str());
+        uint64_t addr =  std::strtol(cmd.args[0].c_str(), NULL, 16);
+        
+        dbg.disassemble(addr, n, DISAS_MODE_BYTE);
+      }
+    } else if (cmd.cmd == "ds") {
+      if (cmd.args.size() == 1) {
+        std::string symbol = cmd.args[0];
+        uint64_t addr = dbg.get_symbol_addr(symbol);
+        uint32_t size = dbg.get_symbol_size(symbol);
+        std::cout << symbol << " at: 0x" <<  std::hex << addr << std::endl;
+
+        if (addr != 0) {
+          dbg.disassemble(addr, size, DISAS_MODE_BYTE); 
+        }
+      }
     } else if (cmd.cmd == "quit") {
       break;
     }
