@@ -232,10 +232,10 @@ public:
   }
 
   void print_regs() {
-    std::cout << "rsp: " << std::hex << regs.rsp << std::endl;
-    std::cout << "rax: " << std::hex << regs.rax << std::endl;
-    std::cout << "rbp: " << std::hex << regs.rbp << std::endl;
-    std::cout << "rip: " << std::hex << regs.rip << std::endl;
+    std::cout << "rsp: 0x" << std::hex << regs.rsp << std::endl;
+    std::cout << "rax: 0x" << std::hex << regs.rax << std::endl;
+    std::cout << "rbp: 0x" << std::hex << regs.rbp << std::endl;
+    std::cout << "rip: 0x" << std::hex << regs.rip << std::endl;
   }
 
 
@@ -255,7 +255,7 @@ public:
   }
 
   void delete_breakpoint(uint32_t idx) {
-    if (idx > breakpoints.size()) {
+    if (idx >= breakpoints.size()) {
       return;
     }
 
@@ -291,6 +291,9 @@ public:
     std::string prefix = "   ";
 
     for (auto instr : instructions) {
+      if (instr.address() == regs.rip) {
+        prefix.assign(" > ");
+      }
       for (auto bp : breakpoints) {
         if (bp.get_addr() == instr.address()) {
           prefix.assign(" * ");
@@ -311,6 +314,10 @@ public:
   }
 
   void single_step() {
+    if (WIFEXITED(status)) {
+      return;
+    }
+
     if (ptrace(PTRACE_SINGLESTEP, proc, NULL, NULL)) {
       std::cout << "single step failed" << std::endl;
       return;
@@ -323,6 +330,14 @@ public:
     for (size_t i = 0; i < breakpoints.size(); i++) {
       std::cout << "brekpoint nr. " << i << " at " << std::hex << breakpoints[i].get_addr() << std::endl;
     }
+  }
+
+  void print_symbols() {
+    elf.print_symtab();
+  }
+
+  void print_sections() {
+    elf.print_sections();
   }
 };
 
@@ -399,6 +414,10 @@ int main(int argc, char *argv[]) {
           dbg.list_breakpoints();
         } else if (cmd.args[0] == "regs") {
           dbg.print_regs();
+        } else if (cmd.args[0] == "symbols" || cmd.args[0] == "sym" || cmd.args[0] == "functions") {
+          dbg.print_symbols();
+        } else if (cmd.args[0] == "sections" || cmd.args[0] == "sec") {
+          dbg.print_sections();
         }
       }
     } else if (cmd.cmd == "D") {

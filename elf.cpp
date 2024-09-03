@@ -40,7 +40,7 @@ public:
 
   // checks if addr is contrained within the section
   bool contains(uint64_t addr) {
-    if (addr > start_addr && addr < start_addr + size) {
+    if (addr >= start_addr && addr < start_addr + size) {
       return true;
     } 
     return false;
@@ -422,13 +422,13 @@ public:
       s.print_section();
     }
   }
-  /* 
+   
   void print_symtab() {
     for (auto& sym_entry: symtab) {
       //std::cout << sym_entry.second.str() << std::endl;
       sym_entry.second.print_symbol();
     }
-  }*/
+  }
 };
 
 /*
