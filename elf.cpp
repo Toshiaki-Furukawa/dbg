@@ -1,8 +1,8 @@
 #include <elf.h>
-#include <inttypes.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <stdlib.h>
+//#include <inttypes.h>
+//#include <stdio.h>
+//#include <stddef.h>
+//#include <stdlib.h>
 #include <fstream>
 #include <vector>
 #include <iostream>

@@ -1,7 +1,7 @@
-#include <unistd.h>
-#include <stdio.h>
+//#include <unistd.h>
+//#include <stdio.h>
 #include <string>
-#include <stdint.h>
+//#include <stdint.h>
 #include <iostream>
 #include <sys/personality.h>
 #include <sys/ptrace.h>
