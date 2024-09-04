@@ -4,7 +4,9 @@
 #include <iostream>
 #include <capstone/capstone.h>
 
+#include "disass.hpp"
 
+/*
 class Instruction {
 private: 
   uint16_t size;
@@ -56,8 +58,46 @@ public:
     ss << "0x" << std::hex << addr << "    " << mnemonic << "  " <<  op_str;
     return ss.str();
   }
-};
+};*/
+Instruction::Instruction(cs_insn *insn) {
+  load(insn); // TODO: improve on this code
+}
+  
+void Instruction::load(cs_insn *insn) {
+  size = insn->size;
+  addr = insn->address;
+  
+  for (uint16_t i = 0; i < size; i++) {
+    bytes.emplace_back(reinterpret_cast<uint8_t>(insn->bytes[i]));
+  }
+   
+  mnemonic.assign(insn->mnemonic);
+  op_str.assign(insn->op_str);   
+}
 
+uint64_t Instruction::address() {
+  return addr;
+}
+
+
+uint16_t Instruction::get_size() {
+  return size;
+}
+
+  
+std::string Instruction::get_mnemonic() {
+  return mnemonic;
+}
+
+std::string Instruction::get_op_str() {
+  return op_str;
+}
+
+std::string Instruction::str() {
+  std::stringstream ss;
+  ss << "0x" << std::hex << addr << "    " << mnemonic << "  " <<  op_str;
+  return ss.str();
+}
 
 std::vector<Instruction> disassemble(cs_arch arch, cs_mode mode, uint64_t addr, const uint8_t *code, size_t code_size) {
   csh handle;

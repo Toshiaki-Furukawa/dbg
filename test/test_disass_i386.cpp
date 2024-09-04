@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "../disass.cpp"
+#include "../disass.hpp"
 
 
 #define CODE1 "\x8d\x4c\x24\x04\x83\xe4\xf0\xff\x71\xfc\x55\x89\xe5\x51\x83\xec\x14"

@@ -1,13 +1,12 @@
 #include <elf.h>
-//#include <inttypes.h>
-//#include <stdio.h>
-//#include <stddef.h>
-//#include <stdlib.h>
 #include <fstream>
 #include <vector>
 #include <iostream>
-#include "disass.cpp"
 #include <map>
+#include <sstream>
+
+#include "disass.hpp"
+#include "elf.hpp"
 
 class Section {
 private:
@@ -46,6 +45,7 @@ public:
     return false;
   }
 };
+
 
 class Symbol {
 private:
@@ -398,3 +398,9 @@ public:
     }
   }
 };
+
+int main() {
+  ELF elf("examples/test_32");
+  
+  elf.print_sections();
+}
