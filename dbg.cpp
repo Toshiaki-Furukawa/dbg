@@ -1,7 +1,4 @@
-#include <unistd.h>
-#include <stdio.h>
 #include <string>
-#include <stdint.h>
 #include <iostream>
 #include <sys/personality.h>
 #include <sys/ptrace.h>
@@ -10,7 +7,13 @@
 #include <vector>
 #include <signal.h>
 
-#include "elf.cpp"
+#include <sstream>
+#include <fstream>
+
+#include <cstdint>
+#include <map>
+#include "elftypes.hpp"
+#include "elf.hpp"
 
 enum disas_mode {
   DISAS_MODE_WORD,

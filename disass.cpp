@@ -1,52 +1,50 @@
-#include "elf.h"
-
-#include <stdio.h>
 #include <vector>
 #include <string>
 #include <sstream>
 #include <iostream>
 #include <capstone/capstone.h>
 
+#include "disass.hpp"
 
-class Instruction {
-private: 
-  uint16_t size;
-  uint64_t addr;
-  std::vector<uint8_t> bytes;
-  std::string mnemonic;
-  std::string op_str;
-
-public:
-  Instruction() {
+Instruction::Instruction(cs_insn *insn) {
+  load(insn); // TODO: improve on this code
+}
+  
+void Instruction::load(cs_insn *insn) {
+  size = insn->size;
+  addr = insn->address;
+  
+  for (uint16_t i = 0; i < size; i++) {
+    bytes.emplace_back(reinterpret_cast<uint8_t>(insn->bytes[i]));
   }
-  
-  Instruction(cs_insn *insn) {
-    load(insn); // TODO: improve on this code
-  }
-  
-  void load(cs_insn *insn) {
-    size = insn->size;
-    addr = insn->address;
-  
-    for (uint16_t i = 0; i < size; i++) {
-      bytes.emplace_back(reinterpret_cast<uint8_t>(insn->bytes[i]));
-    }
    
-    mnemonic.assign(insn->mnemonic);
-    op_str.assign(insn->op_str);   
-  }
+  mnemonic.assign(insn->mnemonic);
+  op_str.assign(insn->op_str);   
+}
 
-  uint64_t address() {
-    return addr;
-  }
+uint64_t Instruction::address() {
+  return addr;
+}
 
-  std::string str() {
-    std::stringstream ss;
-    ss << "0x" << std::hex << addr << "    " << mnemonic << "  " <<  op_str;
-    return ss.str();
-  }
-};
 
+uint16_t Instruction::get_size() {
+  return size;
+}
+
+  
+std::string Instruction::get_mnemonic() {
+  return mnemonic;
+}
+
+std::string Instruction::get_op_str() {
+  return op_str;
+}
+
+std::string Instruction::str() {
+  std::stringstream ss;
+  ss << "0x" << std::hex << addr << "    " << mnemonic << "  " <<  op_str;
+  return ss.str();
+}
 
 std::vector<Instruction> disassemble(cs_arch arch, cs_mode mode, uint64_t addr, const uint8_t *code, size_t code_size) {
   csh handle;
@@ -98,9 +96,8 @@ std::vector<Instruction> disassemble_i386(uint64_t addr, const uint8_t *code, si
 int main() {
   const char *code = "\x55\x89\xe5\x51\x83\xec\x14\xc7\x45\xf4\x00\x00\x00\x00";
   size_t code_size = 14;
-  Instruction instr;
 
-  auto instructions = disassemble_i386(0x1000, reinterpret_cast<const uint8_t*>(&(code[0])), code_size, &instr);
+  auto instructions = disassemble_i386(0x1000, reinterpret_cast<const uint8_t*>(&(code[0])), code_size);
 
   for (auto instr : instructions) {
     std::cout << instr.str() << std::endl; 
