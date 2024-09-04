@@ -284,11 +284,3 @@ std::vector<Instruction> ELF::disassemble_bytes(uint64_t addr, size_t n) {
 std::vector<Instruction> ELF::disassemble_words(uint64_t addr, size_t n) {
   return disassemble_bytes(addr, n*4);
 }
-/*
-int main() {
-  ELF elf("examples/test_pie");
-
-  //elf.print_sections();
-  
-  elf.print_symtab();
-}*/
