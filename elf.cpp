@@ -82,36 +82,35 @@ ELF::~ELF() {
 ////////////////////
 // RESDING SYMTABLE
 ////////////////////
-
-//void ELF::read_symtab_i386(uint32_t strtab_offset, Elf32_Shdr *shdr) {
-void ELF::read_symtab_i386(uint32_t sh_offset, uint32_t sh_size, uint32_t strtab_offset) {
-  auto sym_table = reinterpret_cast<Elf32_Sym*>(&content[sh_offset]);
-  auto sym_count = static_cast<uint32_t>(sh_size)/sizeof(Elf32_Sym);
+template<typename T>
+void ELF::read_symtab(uint32_t sh_offset, uint32_t sh_size, uint32_t strtab_offset) {
+  auto sym_table = reinterpret_cast<T*>(&content[sh_offset]);
+  auto sym_count = sh_size/sizeof(T);
 
   for (uint32_t i = 0; i < sym_count; i++ ) {
     auto name = static_cast<std::string>(&(content[strtab_offset + sym_table[i].st_name]));
 
     symtab.emplace(std::pair(name, Symbol(static_cast<uint64_t>(sym_table[i].st_value), static_cast<uint32_t>(sym_table[i].st_size), name)));
   }
+}
+
+
+//void ELF::read_symtab_i386(uint32_t strtab_offset, Elf32_Shdr *shdr) {
+void ELF::read_symtab_i386(uint32_t sh_offset, uint32_t sh_size, uint32_t strtab_offset) {
+  read_symtab<Elf32_Sym>(sh_offset, sh_size, strtab_offset);
 } 
 
 void ELF::read_symtab_x86_64(uint32_t sh_offset, uint32_t sh_size, uint32_t strtab_offset) {
-  auto sym_table = reinterpret_cast<Elf64_Sym*>(&content[sh_offset]);
-  auto sym_count = static_cast<uint32_t>(sh_size)/sizeof(Elf64_Sym);
-
-  for (uint32_t i = 0; i < sym_count; i++ ) {
-    auto name = reinterpret_cast<const char *>(&(content[strtab_offset + sym_table[i].st_name]));
-
-    symtab.emplace(std::pair(name, Symbol(static_cast<uint64_t>(sym_table[i].st_value), static_cast<uint32_t>(sym_table[i].st_size), name)));
-  }
+  read_symtab<Elf64_Sym>(sh_offset, sh_size, strtab_offset);
 }
 
 
 /////////////////
 // READ SECTONS 
 /////////////////
-void ELF::read_sections_x86_64() {
-  auto elf_header = reinterpret_cast<Elf64_Ehdr*>(content);
+template<typename Elf_hd, typename Elf_Sh>
+void ELF::get_sections() {
+  auto elf_header = reinterpret_cast<Elf_hd*>(content);
 
   if (elf_header->e_type == ET_DYN) {
     is_pie = true;
@@ -119,19 +118,24 @@ void ELF::read_sections_x86_64() {
 
 
   // optional to get name of section
-  auto shdr_string = reinterpret_cast<Elf64_Shdr*>(&content[elf_header->e_shoff + (elf_header->e_shstrndx * elf_header->e_shentsize)]);
+  auto shdr_string = reinterpret_cast<Elf_Sh*>(&content[elf_header->e_shoff + (elf_header->e_shstrndx * elf_header->e_shentsize)]);
 
   for (int i = 0; i < elf_header->e_shnum; i++) {
     // compute offset for section table entry in file
     uint64_t sht_e_offset = elf_header->e_shoff + (i*elf_header->e_shentsize);
 
     // read section table 
-    auto *shdr = reinterpret_cast<Elf64_Shdr*>(&content[sht_e_offset]);
+    auto *shdr = reinterpret_cast<Elf_Sh*>(&content[sht_e_offset]);
 
     auto name = static_cast<std::string>((&content[shdr_string->sh_offset + shdr->sh_name]));
 
     sections.emplace(std::pair(name, Section(shdr, name)));
   }
+
+}
+
+void ELF::read_sections_x86_64() {
+  get_sections<Elf64_Ehdr, Elf64_Shdr>();
 
   auto symtab_sct = sections.find(".symtab");
   auto dynsym_sct = sections.find(".dynsym");
@@ -147,28 +151,7 @@ void ELF::read_sections_x86_64() {
 
 
 void ELF::read_sections_i386() {
-  auto elf_header = reinterpret_cast<Elf32_Ehdr*>(content);
-
-  if (elf_header->e_type == ET_DYN) {
-    is_pie = true;
-  }
-
-  // Data for symbol table
-
-  // optional to get name of section
-  auto shdr_string = reinterpret_cast<Elf32_Shdr*>(&content[elf_header->e_shoff + (elf_header->e_shstrndx * elf_header->e_shentsize)]);
-
-  for (int i = 0; i < elf_header->e_shnum; i++) {
-    // compute offset for section table entry in file
-    uint32_t sht_e_offset = elf_header->e_shoff + (i*elf_header->e_shentsize);
-
-    // read section table entry 
-    auto *shdr = reinterpret_cast<Elf32_Shdr*>(&content[sht_e_offset]);
-
-    auto name = static_cast<std::string>((&content[shdr_string->sh_offset + shdr->sh_name]));
-
-    sections.emplace(std::pair(name, Section(shdr, name)));
-  }
+  get_sections<Elf32_Ehdr, Elf32_Shdr>();
 
   auto symtab_sct = sections.find(".symtab");
   auto dynsym_sct = sections.find(".dynsym");

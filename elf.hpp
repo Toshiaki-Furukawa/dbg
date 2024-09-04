@@ -17,13 +17,17 @@ private:
   bool is_pie; 
  
   // RESDING SYMTABLE 
-  void read_symtab_i386(uint32_t sh_offset, uint32_t sh_size, uint32_t strtab_offset);
-  //void read_symtab_i386(uint32_t strtab_offset, Elf32_Shdr *shdr);
+  template<typename T>
+  void read_symtab(uint32_t sh_offset, uint32_t sh_size, uint32_t strtab_offset);
 
-  //void read_symtab_x86_64(uint32_t strtab_offset, Elf64_Shdr *shdr);
+  void read_symtab_i386(uint32_t sh_offset, uint32_t sh_size, uint32_t strtab_offset);
+
   void read_symtab_x86_64(uint32_t sh_offset, uint32_t sh_size, uint32_t strtab_offset);
 
   // READ SECTONS 
+  template<typename Elf_Eh, typename Elf_Sh>
+  void get_sections();
+
   void read_sections_x86_64();
 
   void read_sections_i386();
