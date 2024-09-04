@@ -1,7 +1,4 @@
-//#include <unistd.h>
-//#include <stdio.h>
 #include <string>
-//#include <stdint.h>
 #include <iostream>
 #include <sys/personality.h>
 #include <sys/ptrace.h>
@@ -11,7 +8,6 @@
 #include <signal.h>
 
 #include <sstream>
-//#include <iostream>
 #include <fstream>
 
 #include <cstdint>
