@@ -6,59 +6,6 @@
 
 #include "disass.hpp"
 
-/*
-class Instruction {
-private: 
-  uint16_t size;
-  uint64_t addr;
-  std::vector<uint8_t> bytes;
-  std::string mnemonic;
-  std::string op_str;
-
-public:
-  Instruction() {
-  }
-  
-  Instruction(cs_insn *insn) {
-    load(insn); // TODO: improve on this code
-  }
-  
-  void load(cs_insn *insn) {
-    size = insn->size;
-    addr = insn->address;
-  
-    for (uint16_t i = 0; i < size; i++) {
-      bytes.emplace_back(reinterpret_cast<uint8_t>(insn->bytes[i]));
-    }
-   
-    mnemonic.assign(insn->mnemonic);
-    op_str.assign(insn->op_str);   
-  }
-
-  uint64_t address() {
-    return addr;
-  }
-
-
-  uint16_t get_size() {
-    return size;
-  }
-
-  
-  std::string get_mnemonic() {
-    return mnemonic;
-  }
-
-  std::string get_op_str() {
-    return op_str;
-  }
-
-  std::string str() {
-    std::stringstream ss;
-    ss << "0x" << std::hex << addr << "    " << mnemonic << "  " <<  op_str;
-    return ss.str();
-  }
-};*/
 Instruction::Instruction(cs_insn *insn) {
   load(insn); // TODO: improve on this code
 }
