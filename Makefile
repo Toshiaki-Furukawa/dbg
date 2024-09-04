@@ -1,51 +1,51 @@
 CC = g++
 LIBNAME = capstone
 TESTLIB = gtest
+FLAGS = -Wall -std=c++17
 
-all: build/dbg.o build/elf.o build/elftypes.o  build/disass.o
+OBJECTS = build/dbg.o build/elf.o build/elftypes.o build/disass.o
+ELF_OBJECTS = build/elf.o build/elftypes.o build/disass.o
+DISASS_OBJECTS = build/disass.o
+
+all: $(OBJECTS)
 	#$(CC) dbg.cpp -o dbg -l $(LIBNAME) -Wall
-	g++ build/dbg.o build/elf.o build/elftypes.o build/disass.o -o dbg -Wall -l capstone
+	$(CC) $(OBJECTS) -o dbg -l $(LIBNAME) $(FLAGS)
 #	gcc test/test.c -o test/test 
 
-elf: build/elf.o build/elftypes.o build/disass.o
-	g++ build/elf.o build/elftypes.o build/disass.o -o elf -Wall -l capstone
+elf: $(ELF_OBJECTS)
+	$(CC) $(ELF_OBJECTS) -o elf -Wall -l $(LIBNAME) $(FLAGS)
 
-disass: build/disass.o
-	g++ build/disass.o -o disass -Wall -l capstone
+disass: $(DISASS_OBJECTS)
+	$(CC) $(DISASS_OBJECTS) -o disass -Wall -l capstone
 
-build/disass.o: disass.cpp disass.hpp
-	g++ -c disass.cpp -o build/disass.o -Wall
-
-build/elf.o: elf.cpp elf.hpp
-	g++ -c elf.cpp -o build/elf.o -Wall
-
-build/elftypes.o: elftypes.cpp elftypes.hpp
-	g++ -c elftypes.cpp -o build/elftypes.o -Wall
-
-build/dbg.o: dbg.cpp
-	g++ -c dbg.cpp -o build/dbg.o -Wall
-	
-#test_: build/elf.o build/dbg.o build/disass.o
-
-test_disass: build/disass.o test/test_disass_i386.o
-	g++ test/test_disass_i386.o build/disass.o -o test/test_disass -Wall -l capstone -l gtest	
-	cd test && ./test_disass
-
-test_elf: build/elf.o build/elftypes.o build/disass.o test/test_elf.o
-	g++ build/disass.o build/elf.o build/elftypes.o test/test_elf.o -o test/test_elf -Wall -l capstone -l gtest
+test_elf: $(ELF_OBJECTS) test/test_elf.o
+	$(CC) $(ELF_OBJECTS) test/test_elf.o -o test/test_elf -l $(LIBNAME) -l $(TESTLIB) $(FLAGS)
 	cd test && ./test_elf
 
+test_disass: $(DISASS_OBJECTS) test/test_disass_i386.o test/test_disass_x86_64.o
+	$(CC) $(DISASS_OBJECTS) test/test_disass_i386.o -o test/test_disass_i386 -l $(LIBNAME) -l $(TESTLIB) $(FLAGS)
+	g++ $(DISASS_OBJECTS) test/test_disass_x86_64.o -o test/test_disass_x86_64 -l $(LIBNAME) -l $(TESTLIB) $(FLAGS)
+	cd test && ./test_disass_i386 && ./test_disass_x86_64
+
+# BUILDS
+build/%.o: %.cpp
+	$(CC) -c $< -o $@ $(FLAGS)
+
+
+# TEST CASES
 test/test_elf.o: test/test_elf.cpp
-	g++ -c test/test_elf.cpp -o test/test_elf.o -Wall	
-	
+	$(CC) -c test/test_elf.cpp -o test/test_elf.o $(FLAGS)
+
 test/test_i386.o: test/test_disass_i386.cpp
-	g++ -c test/test_disass_i386.cpp -o test_disass_i386.o -Wall
+	$(CC) -c test/test_disass_i386.cpp -o test_disass_i386.o $(FLAGS)
 	
+test/test_x86_64.o: test/test_disass_x86_64.cpp
+	$(CC) -c test/test_disass_i386.cpp -o test_disass_i386.o $(FLAGS)
 	
 examples:
 	gcc examples/test.c -o examples/test_32 -m32
 	gcc examples/test.c -o examples/test_64
 
 clean:
-	rm build/*
-	
+	rm -f build/*
+	rm -f test/*.o	
