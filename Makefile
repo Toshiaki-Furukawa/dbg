@@ -2,13 +2,13 @@ CC = g++
 LIBNAME = capstone
 TESTLIB = gtest
 
-all: build/elf.o build/dbg.o build/disass.o
+all: build/dbg.o build/elf.o build/elftypes.o  build/disass.o
 	#$(CC) dbg.cpp -o dbg -l $(LIBNAME) -Wall
-	g++ build/dbg.o buld/elf.o buld/disass.o -o dbg =Wall -l capstone
+	g++ build/dbg.o build/elf.o build/elftypes.o build/disass.o -o dbg -Wall -l capstone
 #	gcc test/test.c -o test/test 
 
-elf: build/elf.o build/disass.o
-	g++ build/elf.o build/disass.o -o elf -Wall -l capstone
+elf: build/elf.o build/elftypes.o build/disass.o
+	g++ build/elf.o build/elftypes.o build/disass.o -o elf -Wall -l capstone
 
 disass: build/disass.o
 	g++ build/disass.o -o disass -Wall -l capstone
@@ -19,7 +19,10 @@ build/disass.o: disass.cpp disass.hpp
 build/elf.o: elf.cpp elf.hpp
 	g++ -c elf.cpp -o build/elf.o -Wall
 
-build/dbg.o: dbg.cpp dbg.hpp
+build/elftypes.o: elftypes.cpp elftypes.hpp
+	g++ -c elftypes.cpp -o build/elftypes.o -Wall
+
+build/dbg.o: dbg.cpp
 	g++ -c dbg.cpp -o build/dbg.o -Wall
 	
 #test_: build/elf.o build/dbg.o build/disass.o
@@ -28,8 +31,8 @@ test_disass: build/disass.o test/test_disass_i386.o
 	g++ test/test_disass_i386.o build/disass.o -o test/test_disass -Wall -l capstone -l gtest	
 	cd test && ./test_disass
 
-test_elf: build/elf.o build/disass.o test/test_elf.o
-	g++ build/disass.o build/elf.o test/test_elf.o -o test/test_elf -Wall -l capstone -l gtest
+test_elf: build/elf.o build/elftypes.o build/disass.o test/test_elf.o
+	g++ build/disass.o build/elf.o build/elftypes.o test/test_elf.o -o test/test_elf -Wall -l capstone -l gtest
 	cd test && ./test_elf
 
 test/test_elf.o: test/test_elf.cpp

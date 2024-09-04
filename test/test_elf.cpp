@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
-#include "../elf.cpp"
+#include "../elftypes.hpp"
+#include "../elf.hpp"
 
 TEST(ElfTest, ConstructorValidFile) {
   const char* filename1 = "test_targets/test_64";
@@ -34,6 +35,7 @@ TEST(ElfTest, ConstructorNotValid) {
   ASSERT_EQ(elf2.get_filename(), filename2);
 }
 
+
 TEST(ElfTest, GetByteAddr) {
   const char *filename32 = "test_targets/test_32";
   const char *filename64 = "test_targets/test_64";
@@ -52,7 +54,6 @@ TEST(ElfTest, GetByteAddr) {
   ASSERT_EQ(elf64.get_bit_at_addr(0x40114c+2), '\x20');
   ASSERT_EQ(elf64.get_bit_at_addr(0x40114c+3), '\x40');
   //ASSERT_EQ(elf64.get_bit_at_addr(0x40114c+4), 0x00);
-
 }
 
 int main(int argc, char **argv) {

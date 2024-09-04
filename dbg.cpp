@@ -10,7 +10,14 @@
 #include <vector>
 #include <signal.h>
 
-#include "elf.cpp"
+#include <sstream>
+//#include <iostream>
+#include <fstream>
+
+#include <cstdint>
+#include <map>
+#include "elftypes.hpp"
+#include "elf.hpp"
 
 enum disas_mode {
   DISAS_MODE_WORD,
