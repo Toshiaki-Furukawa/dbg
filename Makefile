@@ -8,9 +8,7 @@ ELF_OBJECTS = build/elf.o build/elftypes.o build/disass.o
 DISASS_OBJECTS = build/disass.o
 
 all: $(OBJECTS)
-	#$(CC) dbg.cpp -o dbg -l $(LIBNAME) -Wall
 	$(CC) $(OBJECTS) -o dbg -l $(LIBNAME) $(FLAGS)
-#	gcc test/test.c -o test/test 
 
 elf: $(ELF_OBJECTS)
 	$(CC) $(ELF_OBJECTS) -o elf -Wall -l $(LIBNAME) $(FLAGS)
