@@ -295,7 +295,7 @@ public:
     std::string prefix = "   ";
 
     for (auto instr : instructions) {
-      if (instr.address() == regs.rip) {
+      if (instr.address() == regs.rip - base_addr) {
         prefix.assign(" > ");
       }
       for (auto bp : breakpoints) {
@@ -307,6 +307,45 @@ public:
       std::cout << prefix << instr.str() << std::endl;
       prefix.assign("   ");
     }
+  }
+
+  std::vector<uint64_t> get_long(uint64_t addr, size_t n) {
+    std::vector<uint64_t> ret; 
+    if (WIFEXITED(status)) {
+      std::cout << "program is no longer beeing run" << std::endl;
+      return ret;
+    }
+
+
+    ret.reserve(n);
+    for (size_t i = 0; i < n; i++) {
+      uint64_t data = ptrace(PTRACE_PEEKDATA, proc, addr + i*8, NULL);
+      ret.emplace_back(data);
+    }
+
+    return ret;
+  }
+
+  std::vector<uint32_t> get_word(uint64_t addr, size_t n) {
+    std::vector<uint32_t> ret; 
+    if (WIFEXITED(status)) {
+      std::cout << "program is no longer beeing run" << std::endl;
+      return ret;
+    }
+
+    ret.reserve(2*n);
+    for (size_t i = 0; i < n; i++) {
+      uint64_t data = ptrace(PTRACE_PEEKDATA, proc, addr + i*8, NULL);
+      uint32_t lower = static_cast<uint32_t>((data & 0x00000000ffffffff));
+      uint32_t upper = static_cast<uint32_t>((data & ~0xffffffff) >> 8*4);
+
+      std::cout << "data: " << std::hex << data << "   lower: 0x" <<  std::hex << upper << std::endl;
+
+      ret.emplace_back(lower);
+      ret.emplace_back(upper);
+    }
+
+    return ret;
   }
 
   uint64_t get_symbol_addr(std::string sym) {
@@ -420,6 +459,36 @@ int main(int argc, char *argv[]) {
           dbg.print_symbols();
         } else if (cmd.args[0] == "sections" || cmd.args[0] == "sec") {
           dbg.print_sections();
+        }
+      }
+    } else if (cmd.cmd == "xl") {
+      if (cmd.args.size() == 2) {
+        uint64_t addr = std::strtol(cmd.args[0].c_str(), NULL, 16);
+        size_t n = std::stoi(cmd.args[1].c_str());
+        auto content = dbg.get_long(addr, n);
+
+        if (content.size() != n) {
+          std::cout << "could not read data" << std::endl;
+          continue;
+        }
+
+        for (size_t i = 0; i < n; i++) {
+          std::cout << "0x" << std::hex << addr + i*8 << ": 0x" << std::hex << content[i] << std::endl;
+        }
+      }
+    } else if (cmd.cmd == "xw") {
+      if (cmd.args.size() == 2) {
+        uint64_t addr = std::strtol(cmd.args[0].c_str(), NULL, 16);
+        size_t n = std::stoi(cmd.args[1].c_str());
+        auto content = dbg.get_word(addr, n);
+
+        if (content.size() != 2*n) {
+          std::cout << "could not read data" << std::endl;
+          continue;
+        }
+
+        for (size_t i = 0; i < 2*n; i++) {
+          std::cout << "0x" << std::hex << addr + i*4 << ": 0x" << std::hex << content[i] << std::endl;
         }
       }
     } else if (cmd.cmd == "D") {
