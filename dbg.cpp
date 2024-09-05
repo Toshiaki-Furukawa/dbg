@@ -57,6 +57,80 @@ public:
   }
 };
 
+
+class MapEntry {
+private:
+  uint64_t start_addr; 
+  uint64_t end_addr; 
+  bool permissions[4]; // R W X P
+  uint32_t size;
+  uint32_t offset;
+  std::string file;
+  std::string permissions_str;
+
+public:
+  MapEntry(std::string entry_str) {
+    std::string start_addr_str;
+    std::string end_addr_str;
+    std::string offset_str;
+
+    std::stringstream entry(entry_str);
+
+    std::getline(entry, start_addr_str, '-');
+    std::getline(entry, end_addr_str, ' ');
+    std::getline(entry, permissions_str, ' ');
+    std::getline(entry, offset_str, ' ');
+
+    while (getline(entry, file, ' '));
+     
+    start_addr = std::stol(start_addr_str, NULL, 16); 
+    end_addr = std::stol(end_addr_str, NULL, 16); 
+
+    offset = std::stol(offset_str, NULL, 16);
+    if (permissions_str.size() != 4) {
+      std::cout << "could not get permissions" << std::endl;
+      return;
+    }
+
+    for (int i = 0; i < 4; i++) {
+      if(permissions_str[i] != '-') {
+        permissions[i] = true;
+      } else {
+        permissions[i] = false;
+      }
+    }
+
+    size = end_addr - start_addr;
+  }
+
+  uint64_t get_start() {
+    return start_addr;
+  }
+
+  uint64_t get_end() {
+    return end_addr;
+  }
+
+  uint32_t get_size() {
+    return size;
+  }
+
+  bool contains(uint64_t addr) {
+    if (addr >= start_addr && addr < end_addr) {
+      return true;
+    }
+    return false;
+  }
+
+  std::string str() {
+    std::stringstream ss;
+    ss << "0x" << std::hex << start_addr << "-0x" << std::hex << end_addr << "   " << permissions_str << "      " 
+       << std::hex << size << "  " << std::hex << "   " << offset <<"   "<< file;
+
+    return ss.str();
+  }
+};
+
 class Debugger {
 private:
   const char *filename;
@@ -67,6 +141,7 @@ private:
   pid_t proc;
   int status;
   siginfo_t signal;
+  std::vector<MapEntry> vmmap;
 
   uint64_t base_addr;
 
@@ -102,6 +177,7 @@ private:
     return 1;
   }
 
+  //  this function is useful to get a estimate of mappings, prior to reading vmmap
   uint64_t read_vmmap_base() {
     std::stringstream filename;
     filename << "/proc/" << proc << "/maps"; 
@@ -116,6 +192,25 @@ private:
     std::string base_addr_str;
     std::getline(vmmap_file, base_addr_str, ' ');
     return std::stol(base_addr_str, NULL, 16);
+  }
+
+  void read_vmmap() {
+    std::stringstream filename;
+    filename << "/proc/" << proc << "/maps"; 
+
+    std::ifstream vmmap_file(filename.str());
+
+    if (!vmmap_file.is_open()) {
+      std::cout << "could not open vmmaps file" << std::endl;
+    }
+
+    vmmap.clear(); // Chage this just for testing
+    
+    for (std::string line; getline(vmmap_file, line); ) {
+      MapEntry map(line);
+      //std::cout << map.str() << std::endl;
+      vmmap.emplace_back(map);
+    }
   }
 
 public:
@@ -147,6 +242,8 @@ public:
       if (elf.pie()) {
         base_addr = read_vmmap_base();
       }
+
+      read_vmmap();
       return;
     }
   }
@@ -187,6 +284,8 @@ public:
         base_addr = read_vmmap_base();
       }
 
+      read_vmmap();
+
       update_regs();
 
       for (Breakpoint bp: breakpoints) {
@@ -204,7 +303,8 @@ public:
     if (WIFEXITED(status)) {
       return 0;
     }
-    
+
+    read_vmmap();    
     update_regs();
 
     if (ptrace(PTRACE_GETSIGINFO, proc, NULL, &signal)  == -1) {
@@ -306,6 +406,12 @@ public:
       }
       std::cout << prefix << instr.str() << std::endl;
       prefix.assign("   ");
+    }
+  }
+
+  void print_vmmap() {
+    for (auto& entry: vmmap) {
+      std::cout << entry.str() << std::endl;
     }
   }
 
@@ -521,6 +627,9 @@ int main(int argc, char *argv[]) {
           dbg.disassemble(addr, size, DISAS_MODE_BYTE); 
         }
       }
+    } else if (cmd.cmd == "vmmap") {
+      dbg.print_vmmap();
+    
     } else if (cmd.cmd == "quit") {
       break;
     }
