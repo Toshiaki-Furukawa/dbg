@@ -57,6 +57,80 @@ public:
   }
 };
 
+
+class MapEntry {
+private:
+  uint64_t start_addr; 
+  uint64_t end_addr; 
+  bool permissions[4]; // R W X P
+  uint32_t size;
+  uint32_t offset;
+  std::string file;
+  std::string permissions_str;
+
+public:
+  MapEntry(std::string entry_str) {
+    std::string start_addr_str;
+    std::string end_addr_str;
+    std::string offset_str;
+
+    std::stringstream entry(entry_str);
+
+    std::getline(entry, start_addr_str, '-');
+    std::getline(entry, end_addr_str, ' ');
+    std::getline(entry, permissions_str, ' ');
+    std::getline(entry, offset_str, ' ');
+
+    while (getline(entry, file, ' '));
+     
+    start_addr = std::stol(start_addr_str, NULL, 16); 
+    end_addr = std::stol(end_addr_str, NULL, 16); 
+
+    offset = std::stol(offset_str, NULL, 16);
+    if (permissions_str.size() != 4) {
+      std::cout << "could not get permissions" << std::endl;
+      return;
+    }
+
+    for (int i = 0; i < 4; i++) {
+      if(permissions_str[i] != '-') {
+        permissions[i] = true;
+      } else {
+        permissions[i] = false;
+      }
+    }
+
+    size = end_addr - start_addr;
+  }
+
+  uint64_t get_start() {
+    return start_addr;
+  }
+
+  uint64_t get_end() {
+    return end_addr;
+  }
+
+  uint32_t get_size() {
+    return size;
+  }
+
+  bool contains(uint64_t addr) {
+    if (addr >= start_addr && addr < end_addr) {
+      return true;
+    }
+    return false;
+  }
+
+  std::string str() {
+    std::stringstream ss;
+    ss << "0x" << std::hex << start_addr << "-0x" << std::hex << end_addr << "   " << permissions_str << "      " 
+       << std::hex << size << "  " << std::hex << "   " << offset <<"   "<< file;
+
+    return ss.str();
+  }
+};
+
 class Debugger {
 private:
   const char *filename;
@@ -67,6 +141,7 @@ private:
   pid_t proc;
   int status;
   siginfo_t signal;
+  std::vector<MapEntry> vmmap;
 
   uint64_t base_addr;
 
@@ -102,6 +177,7 @@ private:
     return 1;
   }
 
+  //  this function is useful to get a estimate of mappings, prior to reading vmmap
   uint64_t read_vmmap_base() {
     std::stringstream filename;
     filename << "/proc/" << proc << "/maps"; 
@@ -116,6 +192,25 @@ private:
     std::string base_addr_str;
     std::getline(vmmap_file, base_addr_str, ' ');
     return std::stol(base_addr_str, NULL, 16);
+  }
+
+  void read_vmmap() {
+    std::stringstream filename;
+    filename << "/proc/" << proc << "/maps"; 
+
+    std::ifstream vmmap_file(filename.str());
+
+    if (!vmmap_file.is_open()) {
+      std::cout << "could not open vmmaps file" << std::endl;
+    }
+
+    vmmap.clear(); // Chage this just for testing
+    
+    for (std::string line; getline(vmmap_file, line); ) {
+      MapEntry map(line);
+      //std::cout << map.str() << std::endl;
+      vmmap.emplace_back(map);
+    }
   }
 
 public:
@@ -147,6 +242,8 @@ public:
       if (elf.pie()) {
         base_addr = read_vmmap_base();
       }
+
+      read_vmmap();
       return;
     }
   }
@@ -187,6 +284,8 @@ public:
         base_addr = read_vmmap_base();
       }
 
+      read_vmmap();
+
       update_regs();
 
       for (Breakpoint bp: breakpoints) {
@@ -204,7 +303,8 @@ public:
     if (WIFEXITED(status)) {
       return 0;
     }
-    
+
+    read_vmmap();    
     update_regs();
 
     if (ptrace(PTRACE_GETSIGINFO, proc, NULL, &signal)  == -1) {
@@ -295,7 +395,7 @@ public:
     std::string prefix = "   ";
 
     for (auto instr : instructions) {
-      if (instr.address() == regs.rip) {
+      if (instr.address() == regs.rip - base_addr) {
         prefix.assign(" > ");
       }
       for (auto bp : breakpoints) {
@@ -307,6 +407,50 @@ public:
       std::cout << prefix << instr.str() << std::endl;
       prefix.assign("   ");
     }
+  }
+
+  void print_vmmap() {
+    for (auto& entry: vmmap) {
+      std::cout << entry.str() << std::endl;
+    }
+  }
+
+  std::vector<uint64_t> get_long(uint64_t addr, size_t n) {
+    std::vector<uint64_t> ret; 
+    if (WIFEXITED(status)) {
+      std::cout << "program is no longer beeing run" << std::endl;
+      return ret;
+    }
+
+
+    ret.reserve(n);
+    for (size_t i = 0; i < n; i++) {
+      uint64_t data = ptrace(PTRACE_PEEKDATA, proc, addr + i*8, NULL);
+      ret.emplace_back(data);
+    }
+
+    return ret;
+  }
+
+  std::vector<uint32_t> get_word(uint64_t addr, size_t n) {
+    std::vector<uint32_t> ret; 
+    if (WIFEXITED(status)) {
+      std::cout << "program is no longer beeing run" << std::endl;
+      return ret;
+    }
+
+    ret.reserve(2*n);
+    for (size_t i = 0; i < n; i++) {
+      uint64_t data = ptrace(PTRACE_PEEKDATA, proc, addr + i*8, NULL);
+      //uint32_t lower = static_cast<uint32_t>(data & 0xffffffff);
+      auto upper = static_cast<uint32_t>((data & ~static_cast<uint64_t>(0xffffffff)) >> 8*4);
+      auto lower = static_cast<uint32_t>(data & 0xffffffff);
+
+      ret.emplace_back(lower);
+      ret.emplace_back(upper);
+    }
+
+    return ret;
   }
 
   uint64_t get_symbol_addr(std::string sym) {
@@ -422,6 +566,36 @@ int main(int argc, char *argv[]) {
           dbg.print_sections();
         }
       }
+    } else if (cmd.cmd == "xl") {
+      if (cmd.args.size() == 2) {
+        uint64_t addr = std::strtol(cmd.args[0].c_str(), NULL, 16);
+        size_t n = std::stoi(cmd.args[1].c_str());
+        auto content = dbg.get_long(addr, n);
+
+        if (content.size() != n) {
+          std::cout << "could not read data" << std::endl;
+          continue;
+        }
+
+        for (size_t i = 0; i < n; i++) {
+          std::cout << "0x" << std::hex << addr + i*8 << ": 0x" << std::hex << content[i] << std::endl;
+        }
+      }
+    } else if (cmd.cmd == "xw") {
+      if (cmd.args.size() == 2) {
+        uint64_t addr = std::strtol(cmd.args[0].c_str(), NULL, 16);
+        size_t n = std::stoi(cmd.args[1].c_str());
+        auto content = dbg.get_word(addr, n);
+
+        if (content.size() != 2*n) {
+          std::cout << "could not read data" << std::endl;
+          continue;
+        }
+
+        for (size_t i = 0; i < 2*n; i++) {
+          std::cout << "0x" << std::hex << addr + i*4 << ": 0x" << std::hex << content[i] << std::endl;
+        }
+      }
     } else if (cmd.cmd == "D") {
       if (!cmd.args.empty()) {
         uint32_t idx = atoi(cmd.args[0].c_str());
@@ -453,6 +627,9 @@ int main(int argc, char *argv[]) {
           dbg.disassemble(addr, size, DISAS_MODE_BYTE); 
         }
       }
+    } else if (cmd.cmd == "vmmap") {
+      dbg.print_vmmap();
+    
     } else if (cmd.cmd == "quit") {
       break;
     }
