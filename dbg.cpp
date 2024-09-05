@@ -336,10 +336,9 @@ public:
     ret.reserve(2*n);
     for (size_t i = 0; i < n; i++) {
       uint64_t data = ptrace(PTRACE_PEEKDATA, proc, addr + i*8, NULL);
-      uint32_t lower = static_cast<uint32_t>((data & 0x00000000ffffffff));
-      uint32_t upper = static_cast<uint32_t>((data & ~0xffffffff) >> 8*4);
-
-      std::cout << "data: " << std::hex << data << "   lower: 0x" <<  std::hex << upper << std::endl;
+      //uint32_t lower = static_cast<uint32_t>(data & 0xffffffff);
+      auto upper = static_cast<uint32_t>((data & ~static_cast<uint64_t>(0xffffffff)) >> 8*4);
+      auto lower = static_cast<uint32_t>(data & 0xffffffff);
 
       ret.emplace_back(lower);
       ret.emplace_back(upper);
