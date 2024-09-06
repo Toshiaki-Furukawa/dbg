@@ -3,12 +3,12 @@ LIBNAME = capstone
 TESTLIB = gtest
 FLAGS = -Wall -std=c++17
 
-OBJECTS = build/dbg.o build/dbgtypes.o build/elf.o build/elftypes.o build/disass.o
+OBJECTS = build/main.o build/dbg.o build/dbgtypes.o build/elf.o build/elftypes.o build/disass.o
 ELF_OBJECTS = build/elf.o build/elftypes.o build/disass.o
 DISASS_OBJECTS = build/disass.o
 
 all: $(OBJECTS)
-	$(CC) $(OBJECTS) -o dbg -l $(LIBNAME) $(FLAGS)
+	$(CC) $(OBJECTS) -o wg -l $(LIBNAME) $(FLAGS)
 
 elf: $(ELF_OBJECTS)
 	$(CC) $(ELF_OBJECTS) -o elf -Wall -l $(LIBNAME) $(FLAGS)
