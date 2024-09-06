@@ -1,8 +1,12 @@
 #pragma once
 //#include "elftypes.hpp"
+#include <map>
+#include <string>
+#include <cstdint>
 #include <elf.h>
 #include "elftypes.hpp"
 #include "disass.hpp"
+
 
 class ELF {
 private:

@@ -71,9 +71,13 @@ ELF::ELF(const char* filename): filename(filename){
       std::cout << "Format not supported";
       return;
   }
+
+  //elf_file.close();
+  
 }
 
 ELF::~ELF() {
+  //std::cout << "call destructor for; " << filename << std::endl;
   if (content != NULL) {
     delete[] content;
   }
@@ -198,6 +202,7 @@ char ELF::get_bit_at_addr(uint64_t addr) {
   return content[idx];
 }
 
+
 uint64_t ELF::get_symbol_addr(std::string symbol) {
   auto it = symtab.find(symbol);
   
@@ -219,7 +224,7 @@ bool ELF::pie() {
   return is_pie;
 }
 
-  // DEBUG FUNCTIONS
+// DEBUG FUNCTIONS
 void ELF::print_filename() {
   std::cout << filename << std::endl;
 }

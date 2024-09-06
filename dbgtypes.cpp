@@ -1,8 +1,11 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <fstream>
 
+#include "elf.hpp"
 #include "dbgtypes.hpp"
+
 
 Breakpoint::Breakpoint(uint64_t bp_addr, uint8_t orig_data) 
   : addr(bp_addr), data(orig_data), active(true) {}
@@ -27,7 +30,6 @@ void Breakpoint::enable() {
 void Breakpoint::disable() {
   active = false;
 }
-
 
 MapEntry::MapEntry(std::string entry_str) {
   start_addr = 0;
@@ -80,6 +82,10 @@ uint64_t MapEntry::get_end() {
 
 uint32_t MapEntry::get_size() {
   return size;
+}
+
+std::string MapEntry::get_file() {
+  return file;
 }
 
 bool MapEntry::contains(uint64_t addr) {

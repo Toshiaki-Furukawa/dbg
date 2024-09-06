@@ -20,7 +20,7 @@
 class Debugger {
 private:
   const char *filename;
-  ELF elf;
+  ELF *elf;
 
   std::vector<Breakpoint> breakpoints;
   user_regs_struct regs;
@@ -28,6 +28,7 @@ private:
   int status;
   siginfo_t signal;
   std::vector<MapEntry> vmmap;
+  std::map<std::string, ELF*> elf_table;
 
   uint64_t base_addr;
 
@@ -44,6 +45,8 @@ private:
 
 public:
   Debugger (const char *filename);
+
+  ~Debugger();
 
   int cont();
 
