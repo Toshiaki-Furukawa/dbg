@@ -43,6 +43,7 @@ private:
 
   void read_vmmap();
 
+
 public:
   Debugger (const char *filename);
 

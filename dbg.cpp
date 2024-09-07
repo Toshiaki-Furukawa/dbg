@@ -45,10 +45,10 @@ void Debugger::enable_breakpoint(Breakpoint *bp) {
     return;
   }
 
-  auto data = ptrace(PTRACE_PEEKDATA, proc, base_addr + bp->get_addr(), NULL);
+  auto data = ptrace(PTRACE_PEEKDATA, proc, bp->get_addr(), NULL);
   auto mod_data = ((data & ~0xff) | 0xcc);
     
-  ptrace(PTRACE_POKEDATA, proc, base_addr + bp->get_addr(), mod_data);
+  ptrace(PTRACE_POKEDATA, proc, bp->get_addr(), mod_data);
   bp->enable();
 }
 
@@ -57,10 +57,10 @@ void Debugger::disable_breakpoint(Breakpoint *bp) {
     return;
   }
 
-  auto data = ptrace(PTRACE_PEEKDATA, proc, base_addr + bp->get_addr(), NULL);
+  auto data = ptrace(PTRACE_PEEKDATA, proc, bp->get_addr(), NULL);
   auto orig_data = ((data & ~0xff) | bp->get_data());
 
-  ptrace(PTRACE_POKEDATA, proc, base_addr + bp->get_addr(), orig_data);
+  ptrace(PTRACE_POKEDATA, proc, bp->get_addr(), orig_data);
 
   bp->disable(); 
 }
@@ -153,10 +153,10 @@ Debugger::Debugger (const char *filename) : filename(filename) {
     for (auto& entry: vmmap)  {
       auto filename = entry.get_file();
 
-      if (is_elf(filename)) {
-        std::cout << "filename: " << filename << std::endl;
-
+      if (is_elf(filename) && (elf_table.find(filename) == elf_table.end())) {
         ELF *vmmap_elf_file = new ELF(filename.c_str());
+        vmmap_elf_file->rebase(entry.get_start());
+
         elf_table.insert(std::pair(filename, vmmap_elf_file));
       }
     }
@@ -242,7 +242,7 @@ int Debugger::cont() {
 
   if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP) {
     for (Breakpoint bp: breakpoints) {
-      if (bp.get_addr() == regs.rip-1 - base_addr) {
+      if (bp.get_addr() == regs.rip-1) {
         disable_breakpoint(&bp);
         regs.rip -= 1;
 
@@ -277,8 +277,29 @@ void Debugger::set_breakpoint(unsigned long addr) {
       return;
     }
   }
+
+  auto entry = vmmap.begin();
+  for (; entry != vmmap.end(); ++entry) {
+    if (entry->contains(addr)) {
+      break;
+    }
+  }
+
+  auto file = elf_table.find(entry->get_file());
+  if (file == elf_table.end()) {
+    std::cout << "cant disassemble this region" << std::endl; 
+    return;
+  }
  
-  auto data = elf->get_bit_at_addr(addr);
+  if (entry == vmmap.end()) {
+    std::cout << "address not found" << std::endl; 
+    return;
+  }
+
+  auto elf_file = file->second;
+  uint64_t offset = (addr - entry->get_start()) + entry->get_offset();
+
+  auto data = elf_file->get_byte_at_offset(offset);
 
   Breakpoint bp = Breakpoint(addr, data);
   enable_breakpoint(&bp);
@@ -321,29 +342,32 @@ void Debugger::disassemble(uint64_t addr, size_t n, disas_mode mode) {
 
   auto file = elf_table.find(entry->get_file());
   if (file == elf_table.end()) {
-    std::cout << "cant disassemble this regsion" << std::endl; 
+    std::cout << "cant disassemble this region" << std::endl; 
     return;
   }
 
   auto elf_file = file->second;
+  uint64_t offset = (addr - entry->get_start()) + entry->get_offset();
+
+  std::cout << "offsset: " << offset << std::endl;
 
   switch (mode) {
     case DISAS_MODE_WORD:
-      instructions = elf_file->disassemble_words(addr, n);
+      instructions = elf_file->disassemble_words(addr, offset, n);
       break;
     case DISAS_MODE_BYTE:
-      instructions = elf_file->disassemble_bytes(addr, n);
+      instructions = elf_file->disassemble_bytes(addr, offset, n);
       break;
     default: 
       std::cout << "[Warning] No valid mode for disassembly" << std::endl;
-      instructions = elf_file->disassemble_bytes(addr, n);
+      instructions = elf_file->disassemble_bytes(addr, offset, n);
       break;
   }
 
   std::string prefix = "   ";
 
   for (auto instr : instructions) {
-    if (instr.address() == regs.rip - base_addr) {
+    if (instr.address() == regs.rip) {
       prefix.assign(" > ");
     }
     for (auto bp : breakpoints) {
@@ -402,11 +426,25 @@ std::vector<uint32_t> Debugger::get_word(uint64_t addr, size_t n) {
 }
 
 uint64_t Debugger::get_symbol_addr(std::string sym) {
-  return elf->get_symbol_addr(sym);
+  for (auto& entry : elf_table) {
+    auto addr = entry.second->get_symbol_addr(sym);
+
+    if (addr != 0) {
+      return addr;
+    }
+  }
+  return 0;
 }
 
 uint32_t Debugger::get_symbol_size(std::string sym) {
-  return elf->get_symbol_size(sym);
+  for (auto& entry : elf_table) {
+    auto size = entry.second->get_symbol_size(sym);
+
+    if (size != 0) {
+      return size;
+    }
+  }
+  return 0;
 }
 
 void Debugger::single_step() {
@@ -430,7 +468,9 @@ void Debugger::list_breakpoints() {
 }
 
 void Debugger::print_symbols() {
-  elf->print_symtab();
+  for (auto& entry : elf_table) {
+    entry.second->print_symtab();
+  }
 }
 
 void Debugger::print_sections() {

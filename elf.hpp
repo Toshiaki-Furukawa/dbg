@@ -14,6 +14,8 @@ private:
   char *content; 
   int machine;            // stores machine or -1 if the file could not be read
   size_t content_size;
+  uint64_t base;
+
   //std::vector<Section> sections;
   std::map<std::string, Section> sections;
   std::map<std::string, Symbol> symtab;
@@ -40,25 +42,33 @@ public:
   ELF(const char* filename);
 
   ~ELF();
-  
+ 
+  void rebase(uint64_t base_addr);
+ 
   int get_machine();
   
   const char* get_filename();
   
   bool pie();
 
-  int get_idx_from_addr(uint64_t addr);
+  //int get_idx_from_addr(uint64_t addr);
 
-  char get_bit_at_addr(uint64_t addr);
+  //char get_bit_at_addr(uint64_t addr);
+  char get_byte_at_offset(uint32_t offset);
+
+  char get_byte_at_addr(uint64_t addr);
+
+  uint32_t get_symbol_offset(std::string symbol);
 
   uint64_t get_symbol_addr(std::string symbol);
 
   uint32_t get_symbol_size(std::string symbol);
 
 
-  std::vector<Instruction> disassemble_bytes(uint64_t addr, size_t n);
+  std::vector<Instruction> disassemble_bytes(uint64_t addr, uint32_t offset, size_t n);
 
-  std::vector<Instruction> disassemble_words(uint64_t addr, size_t n);
+  std::vector<Instruction> disassemble_words(uint64_t addr, uint32_t offset, size_t n);
+
 
   // DEBUG FUNCTIONS
   void print_filename();

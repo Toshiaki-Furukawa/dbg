@@ -84,6 +84,10 @@ uint32_t MapEntry::get_size() {
   return size;
 }
 
+uint32_t MapEntry::get_offset() {
+  return offset;
+}
+
 std::string MapEntry::get_file() {
   return file;
 }

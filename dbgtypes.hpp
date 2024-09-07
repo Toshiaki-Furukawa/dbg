@@ -56,6 +56,8 @@ public:
 
   uint32_t get_size();
 
+  uint32_t get_offset();
+
   std::string get_file();
 
   bool contains(uint64_t addr);
