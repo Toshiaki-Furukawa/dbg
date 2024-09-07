@@ -235,6 +235,15 @@ char ELF::get_byte_at_addr(uint64_t addr) {
   return get_byte_at_offset(addr - base);
 }
 
+uint8_t *ELF::get_n_bytes_at_addr(uint64_t addr, uint32_t n) {
+  uint8_t *bytes = new uint8_t[n];
+  
+  for (uint64_t i = addr; i < addr + n; i++) {
+    bytes[i-addr] = static_cast<uint8_t>(get_byte_at_addr(i));
+  }
+  return bytes;
+}
+
 uint32_t ELF::get_symbol_offset(std::string symbol) {
   auto it = symtab.find(symbol);
   

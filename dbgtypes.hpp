@@ -11,6 +11,12 @@ enum disas_mode {
   DISAS_MODE_BYTE
 };
 
+enum architecture {
+  ARCH_X86_64,
+  ARCH_X86_32,  
+  ARCH_UNDEF, 
+};
+
 struct command {
   std::string cmd;
   std::vector<std::string> args;

@@ -22,26 +22,38 @@ private:
   const char *filename;
   ELF *elf;
 
-  std::vector<Breakpoint> breakpoints;
   user_regs_struct regs;
   pid_t proc;
   int status;
   siginfo_t signal;
+
+  std::vector<Breakpoint> breakpoints;
   std::vector<MapEntry> vmmap;
   std::map<std::string, ELF*> elf_table;
 
-  uint64_t base_addr;
+  architecture arch;
 
   void enable_breakpoint(Breakpoint *bp);
 
   void disable_breakpoint(Breakpoint *bp); 
+  
 
   int update_regs();
+
+  uint64_t get_symbol_addr(std::string sym);
+
+  uint32_t get_symbol_size(std::string sym);
 
   //  this function is useful to get a estimate of mappings, prior to reading vmmap
   uint64_t read_vmmap_base();
 
   void read_vmmap();
+
+  std::string get_file_from_addr(uint64_t addr);
+  
+  uint8_t *get_bytes_from_file(std::string filename, uint64_t addr, uint32_t n);
+
+  uint8_t *get_bytes_from_memory(uint64_t addr, uint32_t n);
 
 
 public:
@@ -59,11 +71,13 @@ public:
 
   void delete_breakpoint(uint32_t idx);
 
-  void enable_bp(unsigned int idx); 
+  //void enable_bp(unsigned int idx); 
       
-  void disable_bp(unsigned int idx);
+  //void disable_bp(unsigned int idx);
 
-  void disassemble(uint64_t addr, size_t n, disas_mode mode);
+  void disassemble(uint64_t addr, size_t n); //, disas_mode mode);
+  
+  void disassemble(std::string symbol); //, disas_mode mode);
 
   void print_vmmap();
 
@@ -71,9 +85,8 @@ public:
 
   std::vector<uint32_t> get_word(uint64_t addr, size_t n);
 
-  uint64_t get_symbol_addr(std::string sym);
 
-  uint32_t get_symbol_size(std::string sym);
+  //uint32_t get_symbol_size(std::string sym);
 
   void single_step();
 
