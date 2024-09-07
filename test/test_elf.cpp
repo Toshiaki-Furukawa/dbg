@@ -41,19 +41,21 @@ TEST(ElfTest, GetByteAddr) {
   const char *filename64 = "test_targets/test_64";
 
   ELF elf32(filename32);
+  elf32.rebase(0x8048000);
   ELF elf64(filename64);
+  elf64.rebase(0x400000);
 
-  ASSERT_EQ(elf32.get_bit_at_addr(0x8049180), '\x55');
-  ASSERT_EQ(elf32.get_bit_at_addr(0x8049181), '\x89');
-  ASSERT_EQ(elf32.get_bit_at_addr(0x8049182), '\xe5');
-  ASSERT_EQ(elf32.get_bit_at_addr(0x8049183), '\x51');
+  ASSERT_EQ(elf32.get_byte_at_addr(0x8049180), '\x55');
+  ASSERT_EQ(elf32.get_byte_at_addr(0x8049181), '\x89');
+  ASSERT_EQ(elf32.get_byte_at_addr(0x8049182), '\xe5');
+  ASSERT_EQ(elf32.get_byte_at_addr(0x8049183), '\x51');
 
 
-  ASSERT_EQ(elf64.get_bit_at_addr(0x40114c), '\xbf');
-  ASSERT_EQ(elf64.get_bit_at_addr(0x40114c+1), '\x10');
-  ASSERT_EQ(elf64.get_bit_at_addr(0x40114c+2), '\x20');
-  ASSERT_EQ(elf64.get_bit_at_addr(0x40114c+3), '\x40');
-  //ASSERT_EQ(elf64.get_bit_at_addr(0x40114c+4), 0x00);
+  ASSERT_EQ(elf64.get_byte_at_addr(0x40114c), '\xbf');
+  ASSERT_EQ(elf64.get_byte_at_addr(0x40114c+1), '\x10');
+  ASSERT_EQ(elf64.get_byte_at_addr(0x40114c+2), '\x20');
+  ASSERT_EQ(elf64.get_byte_at_addr(0x40114c+3), '\x40');
+  //ASSERT_EQ(elf64.get_byte_at_addr(0x40114c+4), 0x00);
 }
 
 int main(int argc, char **argv) {

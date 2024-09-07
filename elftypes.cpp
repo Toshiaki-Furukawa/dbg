@@ -4,7 +4,7 @@
 #include <sstream>
 #include "elftypes.hpp"
 
-Section::Section(uint64_t start_addr, uint64_t offset, size_t size, std::string name = "None") 
+Section::Section(uint64_t start_addr, uint32_t offset, size_t size, std::string name = "None") 
    : start_addr(start_addr), offset(offset), size(size), name(name) {}
 
 Section::Section(Elf64_Shdr *shdr, std::string name) 
@@ -13,6 +13,10 @@ Section::Section(Elf64_Shdr *shdr, std::string name)
 Section::Section(Elf32_Shdr *shdr, std::string name) 
   : start_addr(shdr->sh_addr), offset(shdr->sh_offset), size(shdr->sh_size), name(name) {}
 
+
+void Section::rebase(uint64_t base_addr) {
+  start_addr = offset + base_addr;
+}
 uint64_t Section::get_offset() {
   return offset;
 }
@@ -39,7 +43,8 @@ bool Section::contains(uint64_t addr) {
   return false;
 }
 
-Symbol::Symbol(uint64_t addr, uint32_t size, std::string name) : addr(addr), size(size), name(name) {}
+Symbol::Symbol(uint64_t addr, uint32_t offset, uint32_t size, std::string name) : addr(addr), offset(offset), size(size), name(name) {}
+
  
 std::string Symbol::str() {
   std::stringstream ss;
@@ -47,8 +52,17 @@ std::string Symbol::str() {
   return ss.str();
 }
 
+void Symbol::rebase(uint64_t base_addr) {
+  addr = base_addr + offset;
+}
+
+
 uint64_t Symbol::get_addr() {
   return addr;
+}
+
+uint32_t Symbol::get_offset() {
+  return offset;
 }
   
 uint32_t Symbol::get_size() {

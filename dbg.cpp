@@ -9,6 +9,7 @@
 
 #include <sstream>
 #include <fstream>
+#include <algorithm>
 
 #include <cstdint>
 #include <map>
@@ -17,15 +18,37 @@
 #include "dbgtypes.hpp"
 #include "dbg.hpp"
 
+bool is_elf(std::string file) {
+  std::ifstream file_content(file, std::ios::binary | std::ios::ate);
+
+  if (!file_content.is_open()) {
+    return false;
+  }
+
+  char magic[4] = {'\xf7', 'E', 'L', 'F'}; 
+
+  for (int i = 0; i < 0; i++) {
+    char tmp;
+    file_content.get(tmp);
+    if (tmp != magic[i]) {
+      file_content.close();
+      return false;
+    }
+  }
+
+  file_content.close();
+  return true;
+}
+
 void Debugger::enable_breakpoint(Breakpoint *bp) {
   if (WIFEXITED(status)) {
     return;
   }
 
-  auto data = ptrace(PTRACE_PEEKDATA, proc, base_addr + bp->get_addr(), NULL);
+  auto data = ptrace(PTRACE_PEEKDATA, proc, bp->get_addr(), NULL);
   auto mod_data = ((data & ~0xff) | 0xcc);
     
-  ptrace(PTRACE_POKEDATA, proc, base_addr + bp->get_addr(), mod_data);
+  ptrace(PTRACE_POKEDATA, proc, bp->get_addr(), mod_data);
   bp->enable();
 }
 
@@ -34,10 +57,10 @@ void Debugger::disable_breakpoint(Breakpoint *bp) {
     return;
   }
 
-  auto data = ptrace(PTRACE_PEEKDATA, proc, base_addr + bp->get_addr(), NULL);
+  auto data = ptrace(PTRACE_PEEKDATA, proc, bp->get_addr(), NULL);
   auto orig_data = ((data & ~0xff) | bp->get_data());
 
-  ptrace(PTRACE_POKEDATA, proc, base_addr + bp->get_addr(), orig_data);
+  ptrace(PTRACE_POKEDATA, proc, bp->get_addr(), orig_data);
 
   bp->disable(); 
 }
@@ -64,6 +87,7 @@ uint64_t Debugger::read_vmmap_base() {
 
   std::string base_addr_str;
   std::getline(vmmap_file, base_addr_str, ' ');
+  vmmap_file.close();
   return std::stol(base_addr_str, NULL, 16);
 }
 
@@ -87,10 +111,13 @@ void Debugger::read_vmmap() {
 
     vmmap.emplace_back(map);
   }
+  vmmap_file.close();
 }
 
-Debugger::Debugger (const char *filename) : filename(filename), elf(filename) {
-  if (elf.pie()) {
+Debugger::Debugger (const char *filename) : filename(filename) {
+  elf = new ELF(filename);
+
+  if (elf->pie()) {
     std::cout << "File is PIE" << std::endl;
   } else {
     std::cout << "No PIE" << std::endl;
@@ -114,13 +141,37 @@ Debugger::Debugger (const char *filename) : filename(filename), elf(filename) {
     waitpid(proc, &status, 0);
     ptrace(PTRACE_SETOPTIONS, proc, NULL, PTRACE_O_EXITKILL);
 
-    if (elf.pie()) {
+    if (elf->pie()) {
       base_addr = read_vmmap_base();
     }
 
+
+    // get memory mapping of child process
     read_vmmap();
+
+    // read files that are in memory
+    for (auto& entry: vmmap)  {
+      auto filename = entry.get_file();
+
+      if (is_elf(filename) && (elf_table.find(filename) == elf_table.end())) {
+        ELF *vmmap_elf_file = new ELF(filename.c_str());
+        vmmap_elf_file->rebase(entry.get_start());
+
+        elf_table.insert(std::pair(filename, vmmap_elf_file));
+      }
+    }
+
     return;
   }
+}
+
+Debugger::~Debugger() {
+  delete elf;
+  for (auto it : elf_table) {
+    delete it.second;
+  }
+
+  elf_table.clear();
 }
 
 void Debugger::reset() {          // WARNING: not working
@@ -131,7 +182,7 @@ void Debugger::reset() {          // WARNING: not working
     std::cout << "tracee killed" << std::endl;
   }
 
-  if (elf.pie()) {
+  if (elf->pie()) {
     std::cout << "File is PIE" << std::endl;
   } else {
     std::cout << "No PIE" << std::endl;
@@ -155,10 +206,11 @@ void Debugger::reset() {          // WARNING: not working
     waitpid(proc, &status, 0);
     ptrace(PTRACE_SETOPTIONS, proc, NULL, PTRACE_O_EXITKILL);
 
-    if (elf.pie()) {
+    if (elf->pie()) {
       base_addr = read_vmmap_base();
     }
 
+    //std::cout << "reading vmmap" << std::endl;
     read_vmmap();
 
     update_regs();
@@ -180,6 +232,7 @@ int Debugger::cont() {
   }
 
   read_vmmap();    
+
   update_regs();
 
   if (ptrace(PTRACE_GETSIGINFO, proc, NULL, &signal)  == -1) {
@@ -189,7 +242,7 @@ int Debugger::cont() {
 
   if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP) {
     for (Breakpoint bp: breakpoints) {
-      if (bp.get_addr() == regs.rip-1 - base_addr) {
+      if (bp.get_addr() == regs.rip-1) {
         disable_breakpoint(&bp);
         regs.rip -= 1;
 
@@ -224,8 +277,29 @@ void Debugger::set_breakpoint(unsigned long addr) {
       return;
     }
   }
+
+  auto entry = vmmap.begin();
+  for (; entry != vmmap.end(); ++entry) {
+    if (entry->contains(addr)) {
+      break;
+    }
+  }
+
+  auto file = elf_table.find(entry->get_file());
+  if (file == elf_table.end()) {
+    std::cout << "cant disassemble this region" << std::endl; 
+    return;
+  }
  
-  auto data = elf.get_bit_at_addr(addr);
+  if (entry == vmmap.end()) {
+    std::cout << "address not found" << std::endl; 
+    return;
+  }
+
+  auto elf_file = file->second;
+  uint64_t offset = (addr - entry->get_start()) + entry->get_offset();
+
+  auto data = elf_file->get_byte_at_offset(offset);
 
   Breakpoint bp = Breakpoint(addr, data);
   enable_breakpoint(&bp);
@@ -253,24 +327,47 @@ void Debugger::disable_bp(unsigned int idx) {
 
 void Debugger::disassemble(uint64_t addr, size_t n, disas_mode mode) {
   std::vector<Instruction> instructions;
+  // get correct memory segment
+  auto entry = vmmap.begin();
+  for (; entry != vmmap.end(); ++entry) {
+    if (entry->contains(addr)) {
+      break;
+    }
+  }
+ 
+  if (entry == vmmap.end()) {
+    std::cout << "address not found" << std::endl; 
+    return;
+  }
+
+  auto file = elf_table.find(entry->get_file());
+  if (file == elf_table.end()) {
+    std::cout << "cant disassemble this region" << std::endl; 
+    return;
+  }
+
+  auto elf_file = file->second;
+  uint64_t offset = (addr - entry->get_start()) + entry->get_offset();
+
+  std::cout << "offsset: " << offset << std::endl;
 
   switch (mode) {
     case DISAS_MODE_WORD:
-      instructions = elf.disassemble_words(addr, n);
+      instructions = elf_file->disassemble_words(addr, offset, n);
       break;
     case DISAS_MODE_BYTE:
-      instructions = elf.disassemble_bytes(addr, n);
+      instructions = elf_file->disassemble_bytes(addr, offset, n);
       break;
     default: 
       std::cout << "[Warning] No valid mode for disassembly" << std::endl;
-      instructions = elf.disassemble_bytes(addr, n);
+      instructions = elf_file->disassemble_bytes(addr, offset, n);
       break;
   }
 
   std::string prefix = "   ";
 
   for (auto instr : instructions) {
-    if (instr.address() == regs.rip - base_addr) {
+    if (instr.address() == regs.rip) {
       prefix.assign(" > ");
     }
     for (auto bp : breakpoints) {
@@ -329,11 +426,25 @@ std::vector<uint32_t> Debugger::get_word(uint64_t addr, size_t n) {
 }
 
 uint64_t Debugger::get_symbol_addr(std::string sym) {
-  return elf.get_symbol_addr(sym);
+  for (auto& entry : elf_table) {
+    auto addr = entry.second->get_symbol_addr(sym);
+
+    if (addr != 0) {
+      return addr;
+    }
+  }
+  return 0;
 }
 
 uint32_t Debugger::get_symbol_size(std::string sym) {
-  return elf.get_symbol_size(sym);
+  for (auto& entry : elf_table) {
+    auto size = entry.second->get_symbol_size(sym);
+
+    if (size != 0) {
+      return size;
+    }
+  }
+  return 0;
 }
 
 void Debugger::single_step() {
@@ -357,10 +468,12 @@ void Debugger::list_breakpoints() {
 }
 
 void Debugger::print_symbols() {
-  elf.print_symtab();
+  for (auto& entry : elf_table) {
+    entry.second->print_symtab();
+  }
 }
 
 void Debugger::print_sections() {
-  elf.print_sections();
+  elf->print_sections();
 }
 

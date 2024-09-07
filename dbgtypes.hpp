@@ -4,6 +4,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include "elf.hpp"
 
 enum disas_mode {
   DISAS_MODE_WORD,
@@ -54,6 +55,10 @@ public:
   uint64_t get_end();
 
   uint32_t get_size();
+
+  uint32_t get_offset();
+
+  std::string get_file();
 
   bool contains(uint64_t addr);
 

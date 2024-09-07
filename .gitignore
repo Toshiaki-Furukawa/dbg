@@ -3,5 +3,7 @@ build/*
 wg
 disass
 elf
-
-
+test/test_disass_i386
+test/test_disass_x86_64
+test/test_elf
+test/*.o
