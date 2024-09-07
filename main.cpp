@@ -16,6 +16,7 @@
 #include "elf.hpp"
 #include "dbgtypes.hpp"
 #include "dbg.hpp"
+#include "disass.hpp"
 
 command_t get_cmd() { 
   command_t ret;
