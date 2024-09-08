@@ -392,7 +392,7 @@ void Debugger::delete_breakpoint(uint32_t idx) {
 ////////////////////
 // DISASSEMBLE
 ////////////////////
-void Debugger::disassemble(uint64_t addr, size_t n) { //disas_mode mode) {
+std::vector<Instruction> Debugger::disassemble(uint64_t addr, size_t n) { //disas_mode mode) {
   std::vector<Instruction> instructions;
 
   std::string filename = get_file_from_addr(addr);
@@ -406,54 +406,82 @@ void Debugger::disassemble(uint64_t addr, size_t n) { //disas_mode mode) {
   }
 
   if (bytes == NULL) {
-    return;
+    return instructions;
   }
 
   
   switch (arch) {
     case ARCH_X86_64:
       instructions = disassemble_x86_64(addr, bytes, n);
-      //instructions = elf_file->disassemble_words(addr, offset, n);
       break;
     case ARCH_X86_32:
       instructions = disassemble_i386(addr, bytes, n);
-      //instructions = elf_file->disassemble_bytes(addr, offset, n);
       break;
     default: 
       std::cout << "[Error] No valid architecture" << std::endl;
-      //instructions = elf_file->disassemble_bytes(addr, offset, n);
-      return;
+      return instructions;
   }
 
   delete[] bytes;
 
-  std::string prefix = "   ";
+  //for (auto instr = instructions.begin();  instr != instructions.end(); ++instr) {
+  for (auto& instr : instructions) {
+    instr.set_prefix("   ");
 
-  for (auto instr : instructions) {
-    if (instr.address() == regs.rip) {
-      prefix.assign(" > ");
+    if (instr.get_addr() == regs.rip) {
+      //prefix.assign(" > ");
+      instr.set_prefix(" > ");
     }
+
     for (auto bp : breakpoints) {
-      if (bp.get_addr() == instr.address()) {
-        prefix.assign(" * ");
+      if (bp.get_addr() == instr.get_addr()) {
+        //prefix.assign(" * ");
+        instr.set_prefix(" * ");
         break;
       } 
     }
-    std::cout << prefix << instr.str() << std::endl;
-    prefix.assign("   ");
+    //std::cout << instr.prefix << std::endl;
+    //std::cout << prefix << instr.str() << std::endl;
+  } 
+ 
+  /*
+  for (auto instr : instructions) {
+    if (instr.address() == regs.rip) {
+      //prefix.assign(" > ");
+      instr.prefix.assign(" > ");
+    }
+
+    for (auto bp : breakpoints) {
+      if (bp.get_addr() == instr.address()) {
+        //prefix.assign(" * ");
+        instr.prefix.assign(" * ");
+        break;
+      } 
+    }
+    instr.prefix.assign("===");
+    std::cout << instr.prefix << std::endl;
+    //std::cout << prefix << instr.str() << std::endl;
+    //prefix.assign("   ");
   }
+  std::cout << instructions[0].prefix << std::endl;*/
+
+  return instructions;
 }
 
-void Debugger::disassemble(std::string symbol) {
+std::vector<Instruction> Debugger::disassemble(std::string symbol) {
+  std::vector<Instruction> instructions;
+
   uint64_t addr = get_symbol_addr(symbol);
   if (addr == 0) {
     std::cout << "Symbol not found" << std::endl;
-    return;
+    return instructions;
   }
 
   uint32_t size = get_symbol_size(symbol);
 
-  disassemble(addr, size);
+  instructions = disassemble(addr, size);
+  std::cout << instructions[0].str() << std::endl;
+  return instructions;
 }
 
 /////////////////////
@@ -464,7 +492,6 @@ uint8_t *Debugger::get_bytes(uint64_t addr, size_t n) {
   std::string filename = get_file_from_addr(addr);
   uint8_t *bytes; 
 
-  //std::cout <<"hi: " << filename << std::endl;
   if (filename.empty()) {
     std::cout << "reading from mem" << std::endl;
     bytes = get_bytes_from_memory(addr, n);

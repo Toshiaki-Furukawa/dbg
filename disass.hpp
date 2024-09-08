@@ -8,13 +8,20 @@ private:
   std::vector<uint8_t> bytes;
   std::string mnemonic;
   std::string op_str;
+  std::string suffix;
 
 public:
+  std::string prefix;
+
   Instruction(cs_insn *insn);
   
   void load(cs_insn *insn);
 
-  uint64_t address();
+  void set_prefix(std::string prefix);
+
+  void set_suffix(std::string suffix);
+
+  uint64_t get_addr();
 
   uint16_t get_size();
 
