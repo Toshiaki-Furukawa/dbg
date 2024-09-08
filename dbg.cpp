@@ -17,6 +17,7 @@
 #include "elf.hpp"
 #include "dbgtypes.hpp"
 #include "dbg.hpp"
+#include "disass.hpp"
 
 bool is_elf(std::string file) {
   std::ifstream file_content(file, std::ios::binary | std::ios::ate);
@@ -73,25 +74,6 @@ int Debugger::update_regs() {
   return 1;
 }
 
-//  this function is useful to get a estimate of mappings, prior to reading vmmap
-/*
-uint64_t Debugger::read_vmmap_base() {
-  std::stringstream filename;
-  filename << "/proc/" << proc << "/maps"; 
-
-  std::ifstream vmmap_file(filename.str());
-
-  if (!vmmap_file.is_open()) {
-    std::cout << "could not open vmmaps file" << std::endl;
-    return 0;
-  }
-
-  //std::string base_addr_str;
-  //std::getline(vmmap_file, base_addr_str, ' ');
-  vmmap_file.close();
-  return std::stol(base_addr_str, NULL, 16);
-}*/
-
 uint64_t Debugger::get_symbol_addr(std::string sym) {
   for (auto& entry : elf_table) {
     auto addr = entry.second->get_symbol_addr(sym);
@@ -138,7 +120,9 @@ void Debugger::read_vmmap() {
 }
 
 std::string Debugger::get_file_from_addr(uint64_t addr) {
+  std::string ret;
   auto entry = vmmap.begin();
+
   for (; entry != vmmap.end(); ++entry) {
     if (entry->contains(addr)) {
       break;
@@ -146,14 +130,14 @@ std::string Debugger::get_file_from_addr(uint64_t addr) {
   }
  
   if (entry == vmmap.end()) {
-    std::cout << "address not found" << std::endl; 
-    return "";
+    //std::cout << "address not found" << std::endl; 
+    return ret;
   }
 
   auto file = elf_table.find(entry->get_file());
   if (file == elf_table.end()) {
-    std::cout << "cant disassemble this region" << std::endl; 
-    return "";
+    //std::cout << "cant disassemble this region" << std::endl; 
+    return ret;
   }
   return entry->get_file();
 }
@@ -292,12 +276,6 @@ void Debugger::reset() {          // WARNING: not working
     waitpid(proc, &status, 0);
     ptrace(PTRACE_SETOPTIONS, proc, NULL, PTRACE_O_EXITKILL);
 
-    /*
-    if (elf->pie()) {
-      base_addr = read_vmmap_base();
-    }*/
-
-    //std::cout << "reading vmmap" << std::endl;
     read_vmmap();
 
     update_regs();
@@ -379,7 +357,7 @@ void Debugger::set_breakpoint(unsigned long addr) {
 
   uint8_t *bytes;
 
-  if (filename == "") {
+  if (filename.empty()) {
     bytes = get_bytes_from_memory(addr, 1);
   } else {
     bytes = get_bytes_from_file(filename, addr, 1);
@@ -420,7 +398,7 @@ void Debugger::disassemble(uint64_t addr, size_t n) { //disas_mode mode) {
   std::string filename = get_file_from_addr(addr);
   uint8_t *bytes;
 
-  if (filename == "") {
+  if (filename.empty()) {
     std::cout << "WARNING: disassembling section that is not a file" << std::endl;
     bytes = get_bytes_from_memory(addr, n);
   } else {
@@ -484,16 +462,18 @@ void Debugger::disassemble(std::string symbol) {
 
 uint8_t *Debugger::get_bytes(uint64_t addr, size_t n) {
   std::string filename = get_file_from_addr(addr);
-  uint8_t *bytes =  new uint8_t[n];
+  uint8_t *bytes; 
 
-  if (filename == "") {
+  //std::cout <<"hi: " << filename << std::endl;
+  if (filename.empty()) {
+    std::cout << "reading from mem" << std::endl;
     bytes = get_bytes_from_memory(addr, n);
   } else {
     bytes = get_bytes_from_file(filename, addr, n);
   }
 
-  if (bytes == 0) {
-    return 0;
+  if (bytes == NULL) {
+    return NULL;
   }
 
   return bytes;
@@ -501,39 +481,52 @@ uint8_t *Debugger::get_bytes(uint64_t addr, size_t n) {
 
 std::vector<uint64_t> Debugger::get_long(uint64_t addr, size_t n) {
   std::vector<uint64_t> ret; 
+  auto bytes = get_bytes(addr, n*8);
 
-  if (WIFEXITED(status)) {
-    std::cout << "Program is no longer beeing run" << std::endl;
+  if (bytes == NULL) {
     return ret;
   }
 
 
-  ret.reserve(n);
-  for (size_t i = 0; i < n; i++) {
-    uint64_t data = ptrace(PTRACE_PEEKDATA, proc, addr + i*8, NULL);
-    ret.emplace_back(data);
+ for (size_t i = 0; i < n; i++) {
+    uint64_t addr = static_cast<uint64_t>(bytes[i*8]);
+    addr += static_cast<uint64_t>(bytes[i*8+1]) << 8;
+    addr += static_cast<uint64_t>(bytes[i*8+2]) << 2*8;
+    addr += static_cast<uint64_t>(bytes[i*8+3]) << 3*8;
+    addr += static_cast<uint64_t>(bytes[i*8+4]) << 4*8;
+    addr += static_cast<uint64_t>(bytes[i*8+5]) << 5*8;
+    addr += static_cast<uint64_t>(bytes[i*8+6]) << 6*8;
+    addr += static_cast<uint64_t>(bytes[i*8+7]) << 7*8;
+
+
+    ret.emplace_back(addr);
   }
+
+  delete[] bytes;
 
   return ret;
 }
 
 std::vector<uint32_t> Debugger::get_word(uint64_t addr, size_t n) {
   std::vector<uint32_t> ret; 
-  if (WIFEXITED(status)) {
-    std::cout << "Program is no longer beeing run" << std::endl;
+  auto bytes = get_bytes(addr, n*4);
+
+  if (bytes == NULL) {
     return ret;
   }
 
-  ret.reserve(2*n);
-  for (size_t i = 0; i < n; i++) {
-    uint64_t data = ptrace(PTRACE_PEEKDATA, proc, addr + i*8, NULL);
-    //uint32_t lower = static_cast<uint32_t>(data & 0xffffffff);
-    auto upper = static_cast<uint32_t>((data & ~static_cast<uint64_t>(0xffffffff)) >> 8*4);
-    auto lower = static_cast<uint32_t>(data & 0xffffffff);
 
-    ret.emplace_back(lower);
-    ret.emplace_back(upper);
+ for (size_t i = 0; i < n; i++) {
+    uint32_t addr = static_cast<uint32_t>(bytes[i*4]);
+    addr += bytes[i*4+1] << 8;
+    addr += bytes[i*4+2] << 2*8;
+    addr += bytes[i*4+3] << 3*8;
+
+
+    ret.emplace_back(addr);
   }
+
+  delete[] bytes;
 
   return ret;
 }

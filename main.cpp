@@ -115,12 +115,17 @@ int main(int argc, char *argv[]) {
         size_t n = std::stoi(cmd.args[1].c_str());
         auto content = dbg.get_word(addr, n);
 
-        if (content.size() != 2*n) {
+        if (content.empty()) {
           std::cout << "could not read data" << std::endl;
           continue;
         }
+     
+        /*if (content.size() != 2*n) {
+          std::cout << "could not read data" << std::endl;
+          continue;
+        }*/
 
-        for (size_t i = 0; i < 2*n; i++) {
+        for (size_t i = 0; i < n; i++) {
           std::cout << "0x" << std::hex << addr + i*4 << ": 0x" << std::hex << content[i] << std::endl;
         }
       }
