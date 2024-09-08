@@ -12,8 +12,8 @@ class ELF {
 private:
   const char* filename;
   char *content; 
-  int machine;            // stores machine or -1 if the file could not be read
   size_t content_size;
+  int machine;            // stores machine or -1 if the file could not be read
   uint64_t base;
 
   //std::vector<Section> sections;
@@ -51,14 +51,17 @@ public:
   
   bool pie();
 
-  //int get_idx_from_addr(uint64_t addr);
 
-  //char get_bit_at_addr(uint64_t addr);
+
   char get_byte_at_offset(uint32_t offset);
 
   char get_byte_at_addr(uint64_t addr);
 
   uint8_t *get_n_bytes_at_addr(uint64_t addr, uint32_t n);
+
+  uint8_t *get_n_bytes_at_offset(uint64_t addr, uint32_t n);
+
+
 
   uint32_t get_symbol_offset(std::string symbol);
 
@@ -66,10 +69,6 @@ public:
 
   uint32_t get_symbol_size(std::string symbol);
 
-
-  std::vector<Instruction> disassemble_bytes(uint64_t addr, uint32_t offset, size_t n);
-
-  std::vector<Instruction> disassemble_words(uint64_t addr, uint32_t offset, size_t n);
 
 
   // DEBUG FUNCTIONS

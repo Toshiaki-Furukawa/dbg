@@ -204,25 +204,14 @@ const char* ELF::get_filename() {
   return filename;
 }
 
-/*int ELF::get_idx_from_addr(uint64_t addr) {
-  // find correct section
-  for (auto& s: sections) {
-    if (s.second.contains(addr)) {
-      return addr - s.second.get_start() + s.second.get_offset();
-    }
-  }
-  return -1;
+bool ELF::pie() {
+  return is_pie;
 }
 
-char ELF::get_bit_at_addr(uint64_t addr) {
-  auto idx =  get_idx_from_addr(addr);
-  if (idx < 0) {
-    std::cout << "Not a valid address";
-    return -1;
-  }
 
-  return content[idx];
-}*/
+//////////////////////
+// READ FROM MEM
+/////////////////////
 
 char ELF::get_byte_at_offset(uint32_t offset) {
   if (offset < content_size) {
@@ -243,6 +232,20 @@ uint8_t *ELF::get_n_bytes_at_addr(uint64_t addr, uint32_t n) {
   }
   return bytes;
 }
+
+uint8_t *ELF::get_n_bytes_at_offset(uint64_t offset, uint32_t n) {
+  uint8_t *bytes = new uint8_t[n];
+  
+  for (uint64_t i = offset; i < offset + n; i++) {
+    bytes[i-offset] = static_cast<uint8_t>(get_byte_at_offset(offset));
+  }
+
+  return bytes;
+}
+
+///////////////////////
+// SYMTAB functions
+//////////////////////
 
 uint32_t ELF::get_symbol_offset(std::string symbol) {
   auto it = symtab.find(symbol);
@@ -274,11 +277,9 @@ uint32_t ELF::get_symbol_size(std::string symbol) {
   return it->second.get_size();
 }
 
-bool ELF::pie() {
-  return is_pie;
-}
-
+////////////////////
 // DEBUG FUNCTIONS
+///////////////////
 void ELF::print_filename() {
   std::cout << filename << std::endl;
 }
@@ -293,39 +294,4 @@ void ELF::print_symtab() {
   for (auto& sym_entry: symtab) {
     sym_entry.second.print_symbol();
   }
-}
-  
-std::vector<Instruction> ELF::disassemble_bytes(uint64_t addr, uint32_t offset, size_t n) {
-  std::vector<Instruction> instructions;
-
-  /*
-  auto idx = get_idx_from_addr(addr);
-
-  if (idx == -1) {
-    std::cout << "Not a valid address" << std::endl;
-    return instructions;
-  }
-
-  if (n + idx >= content_size) {
-    std::cout << "Range is to big." << std::endl;
-  }*/
- 
-
-  //std::cout << "offset: " << idx << std::endl; 
-  switch (machine) {
-    case EM_X86_64:
-      instructions = disassemble_x86_64(addr, reinterpret_cast<const uint8_t*>(&(content[offset])), n);
-      break;
-    case EM_386:
-      instructions = disassemble_i386(addr, reinterpret_cast<const uint8_t*>(&(content[offset])),  n);
-      break;
-    default:
-      std::cout << "Architecture not supported";
-      return instructions;
-  }
-  return instructions; 
-}
-
-std::vector<Instruction> ELF::disassemble_words(uint64_t addr, uint32_t offset, size_t n) {
-  return disassemble_bytes(addr, offset, n*4);
 }

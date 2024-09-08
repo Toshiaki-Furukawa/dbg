@@ -36,7 +36,6 @@ private:
   void enable_breakpoint(Breakpoint *bp);
 
   void disable_breakpoint(Breakpoint *bp); 
-  
 
   int update_regs();
 
@@ -45,7 +44,7 @@ private:
   uint32_t get_symbol_size(std::string sym);
 
   //  this function is useful to get a estimate of mappings, prior to reading vmmap
-  uint64_t read_vmmap_base();
+  //uint64_t read_vmmap_base();
 
   void read_vmmap();
 
@@ -61,34 +60,32 @@ public:
 
   ~Debugger();
 
-  int cont();
-
   void reset();
 
-  void print_regs();
+  int cont();
+
+  void single_step();
 
   void set_breakpoint(unsigned long addr);
 
   void delete_breakpoint(uint32_t idx);
 
-  //void enable_bp(unsigned int idx); 
-      
-  //void disable_bp(unsigned int idx);
 
-  void disassemble(uint64_t addr, size_t n); //, disas_mode mode);
+  void disassemble(uint64_t addr, size_t n);
   
-  void disassemble(std::string symbol); //, disas_mode mode);
+  void disassemble(std::string symbol); 
 
-  void print_vmmap();
+
+  uint8_t *get_bytes(uint64_t adddr, size_t n);
 
   std::vector<uint64_t> get_long(uint64_t addr, size_t n); 
 
   std::vector<uint32_t> get_word(uint64_t addr, size_t n);
 
 
-  //uint32_t get_symbol_size(std::string sym);
+  void print_regs();
 
-  void single_step();
+  void print_vmmap();
 
   void list_breakpoints();
 
