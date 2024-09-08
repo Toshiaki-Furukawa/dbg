@@ -9,7 +9,8 @@
 
 #include <sstream>
 #include <fstream>
-#include <algorithm>
+//#include <algorithm>
+#include <sys/uio.h>
 
 #include <cstdint>
 #include <map>
@@ -161,10 +162,19 @@ uint8_t *Debugger::get_bytes_from_memory(uint64_t addr, uint32_t n) {
   }
 
   uint8_t *ret = new uint8_t[n];
-  
-  for (uint64_t i = addr; i < addr+n; i++) {
-    uint64_t data = ptrace(PTRACE_PEEKDATA, proc, i, NULL);
-    ret[i-addr] = static_cast<uint8_t>(data & static_cast<uint64_t>(0xff));
+
+  struct iovec local_mem[1];
+  struct iovec remote_mem[1];
+
+  local_mem[0].iov_base = ret;
+  local_mem[0].iov_len = n;
+
+  remote_mem[0].iov_base = (void *)(addr);
+  remote_mem[0].iov_len = n; 
+
+  if (process_vm_readv(proc, local_mem, 1, remote_mem, 1, 0) != n) {
+    delete[] ret;
+    return NULL;
   }
 
   return ret;
