@@ -16,6 +16,7 @@
 #include "elf.hpp"
 #include "dbgtypes.hpp"
 #include "dbg.hpp"
+#include "disass.hpp"
 
 command_t get_cmd() { 
   command_t ret;
@@ -134,25 +135,25 @@ int main(int argc, char *argv[]) {
         size_t n = std::stoi(cmd.args[1].c_str());
         uint64_t addr =  std::strtol(cmd.args[0].c_str(), NULL, 16);
         
-        dbg.disassemble(addr, n, DISAS_MODE_WORD);
+        dbg.disassemble(addr, 4*n);
       } 
     } else if (cmd.cmd == "db") {
       if (cmd.args.size() == 2) {
         size_t n = std::stoi(cmd.args[1].c_str());
         uint64_t addr =  std::strtol(cmd.args[0].c_str(), NULL, 16);
         
-        dbg.disassemble(addr, n, DISAS_MODE_BYTE);
+        dbg.disassemble(addr, n);
       }
     } else if (cmd.cmd == "ds") {
       if (cmd.args.size() == 1) {
         std::string symbol = cmd.args[0];
-        uint64_t addr = dbg.get_symbol_addr(symbol);
-        uint32_t size = dbg.get_symbol_size(symbol);
-        std::cout << symbol << " at: 0x" <<  std::hex << addr << std::endl;
+        //uint64_t addr = dbg.get_symbol_addr(symbol);
+        //uint32_t size = dbg.get_symbol_size(symbol);
+        //std::cout << symbol << " at: 0x" <<  std::hex << addr << std::endl;
 
-        if (addr != 0) {
-          dbg.disassemble(addr, size, DISAS_MODE_BYTE); 
-        }
+        //if (addr != 0) {
+        dbg.disassemble(symbol); 
+        //}
       }
     } else if (cmd.cmd == "vmmap") {
       dbg.print_vmmap();
