@@ -71,9 +71,9 @@ public:
   void delete_breakpoint(uint32_t idx);
 
 
-  void disassemble(uint64_t addr, size_t n);
+  std::vector<Instruction> disassemble(uint64_t addr, size_t n);
   
-  void disassemble(std::string symbol); 
+  std::vector<Instruction> disassemble(std::string symbol); 
 
 
   uint8_t *get_bytes(uint64_t adddr, size_t n);

@@ -22,7 +22,15 @@ void Instruction::load(cs_insn *insn) {
   op_str.assign(insn->op_str);   
 }
 
-uint64_t Instruction::address() {
+void Instruction::set_prefix(std::string const s) {
+  this->prefix.assign(s);
+}
+
+void Instruction::set_suffix(std::string suffix) {
+  this->suffix.assign(suffix);
+}
+
+uint64_t Instruction::get_addr() {
   return addr;
 }
 
@@ -42,7 +50,8 @@ std::string Instruction::get_op_str() {
 
 std::string Instruction::str() {
   std::stringstream ss;
-  ss << "0x" << std::hex << addr << "    " << mnemonic << "  " <<  op_str;
+  //std::cout << "aaa" << this->prefix << "bbbb" << std::endl;
+  ss << prefix  << "0x" << std::hex << addr << "    " << mnemonic << "  " <<  op_str << suffix;
   return ss.str();
 }
 

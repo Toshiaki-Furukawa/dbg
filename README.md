@@ -34,6 +34,4 @@ xl 0xADDR n    inspect n long from address
 
 ## TODO:
 - update regs after program has exited
-- track rip position PIE binary
-- multi-level address lookup
 

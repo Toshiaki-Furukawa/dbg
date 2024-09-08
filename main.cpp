@@ -115,12 +115,17 @@ int main(int argc, char *argv[]) {
         size_t n = std::stoi(cmd.args[1].c_str());
         auto content = dbg.get_word(addr, n);
 
-        if (content.size() != 2*n) {
+        if (content.empty()) {
           std::cout << "could not read data" << std::endl;
           continue;
         }
+     
+        /*if (content.size() != 2*n) {
+          std::cout << "could not read data" << std::endl;
+          continue;
+        }*/
 
-        for (size_t i = 0; i < 2*n; i++) {
+        for (size_t i = 0; i < n; i++) {
           std::cout << "0x" << std::hex << addr + i*4 << ": 0x" << std::hex << content[i] << std::endl;
         }
       }
@@ -134,25 +139,40 @@ int main(int argc, char *argv[]) {
       if (cmd.args.size() == 2) {
         size_t n = std::stoi(cmd.args[1].c_str());
         uint64_t addr =  std::strtol(cmd.args[0].c_str(), NULL, 16);
-        
-        dbg.disassemble(addr, 4*n);
+
+        std::cout << "disassembling " << std::hex << addr  << ":" << std::endl; 
+
+        auto instructions = dbg.disassemble(addr, 4*n);
+
+        for (auto instr: instructions) {
+          std::cout << instr.str() << std::endl;
+        }
+
       } 
     } else if (cmd.cmd == "db") {
       if (cmd.args.size() == 2) {
         size_t n = std::stoi(cmd.args[1].c_str());
         uint64_t addr =  std::strtol(cmd.args[0].c_str(), NULL, 16);
+
+        std::cout << "disassembling " << std::hex << addr  << ":" << std::endl; 
+
+        auto instructions = dbg.disassemble(addr, n);
+
+        for (auto instr: instructions) {
+          std::cout << instr.str() << std::endl;
+        }
         
-        dbg.disassemble(addr, n);
       }
     } else if (cmd.cmd == "ds") {
       if (cmd.args.size() == 1) {
         std::string symbol = cmd.args[0];
-        //uint64_t addr = dbg.get_symbol_addr(symbol);
-        //uint32_t size = dbg.get_symbol_size(symbol);
-        //std::cout << symbol << " at: 0x" <<  std::hex << addr << std::endl;
 
-        //if (addr != 0) {
-        dbg.disassemble(symbol); 
+        std::cout << "disassembling " << symbol  << ":" << std::endl; 
+        auto instructions = dbg.disassemble(symbol); 
+
+        for (auto instr: instructions) {
+          std::cout << instr.str() << std::endl;
+        }
         //}
       }
     } else if (cmd.cmd == "vmmap") {
