@@ -20,13 +20,13 @@ TEST(DisassTest, Addresses_i386) {
   
   for (size_t i = 0; i < instructions1.size(); i++) {
     std::cout << "Instruction nr. " << i  << " : " << instructions1[i].str() << std::endl;
-    ASSERT_EQ(instructions1[i].address(), code1_expected_addresses[i]);
+    ASSERT_EQ(instructions1[i].get_addr(), code1_expected_addresses[i]);
   }
 
   std::cout << std::endl;
   for (size_t i = 0; i < instructions2.size(); i++) {
     std::cout << "Instruction nr. " << i  << " : " << instructions2[i].str() << std::endl;
-    ASSERT_EQ(instructions2[i].address(), code2_expected_addresses[i]);
+    ASSERT_EQ(instructions2[i].get_addr(), code2_expected_addresses[i]);
   }
 }
 

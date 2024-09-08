@@ -429,41 +429,16 @@ std::vector<Instruction> Debugger::disassemble(uint64_t addr, size_t n) { //disa
     instr.set_prefix("   ");
 
     if (instr.get_addr() == regs.rip) {
-      //prefix.assign(" > ");
       instr.set_prefix(" > ");
     }
 
     for (auto bp : breakpoints) {
       if (bp.get_addr() == instr.get_addr()) {
-        //prefix.assign(" * ");
         instr.set_prefix(" * ");
         break;
       } 
     }
-    //std::cout << instr.prefix << std::endl;
-    //std::cout << prefix << instr.str() << std::endl;
   } 
- 
-  /*
-  for (auto instr : instructions) {
-    if (instr.address() == regs.rip) {
-      //prefix.assign(" > ");
-      instr.prefix.assign(" > ");
-    }
-
-    for (auto bp : breakpoints) {
-      if (bp.get_addr() == instr.address()) {
-        //prefix.assign(" * ");
-        instr.prefix.assign(" * ");
-        break;
-      } 
-    }
-    instr.prefix.assign("===");
-    std::cout << instr.prefix << std::endl;
-    //std::cout << prefix << instr.str() << std::endl;
-    //prefix.assign("   ");
-  }
-  std::cout << instructions[0].prefix << std::endl;*/
 
   return instructions;
 }
@@ -561,6 +536,10 @@ std::vector<uint32_t> Debugger::get_word(uint64_t addr, size_t n) {
 //////////////////////
 // print functions
 /////////////////////
+uint64_t Debugger::get_rip() {
+  return regs.rip;
+}
+
 
 void Debugger::print_regs() {
   std::cout << "rsp: 0x" << std::hex << regs.rsp << std::endl;

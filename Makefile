@@ -6,6 +6,7 @@ FLAGS = -Wall -std=c++17
 OBJECTS = build/main.o build/dbg.o build/dbgtypes.o build/elf.o build/elftypes.o build/disass.o
 ELF_OBJECTS = build/elf.o build/elftypes.o build/disass.o
 DISASS_OBJECTS = build/disass.o
+DBG_OBJECTS = build/dbg.o build/dbgtypes.o build/elf.o build/elftypes.o build/disass.o 
 
 all: $(OBJECTS)
 	$(CC) $(OBJECTS) -o wg -l $(LIBNAME) $(FLAGS)
@@ -22,8 +23,12 @@ test_elf: $(ELF_OBJECTS) test/test_elf.o
 
 test_disass: $(DISASS_OBJECTS) test/test_disass_i386.o test/test_disass_x86_64.o
 	$(CC) $(DISASS_OBJECTS) test/test_disass_i386.o -o test/test_disass_i386 -l $(LIBNAME) -l $(TESTLIB) $(FLAGS)
-	g++ $(DISASS_OBJECTS) test/test_disass_x86_64.o -o test/test_disass_x86_64 -l $(LIBNAME) -l $(TESTLIB) $(FLAGS)
+	$(CC) $(DISASS_OBJECTS) test/test_disass_x86_64.o -o test/test_disass_x86_64 -l $(LIBNAME) -l $(TESTLIB) $(FLAGS)
 	cd test && ./test_disass_i386 && ./test_disass_x86_64
+
+test_dbg: $(DBG_OBJECTS) test/test_dbg.o
+	$(CC) $(DBG_OBJECTS) test/test_dbg.o -o test/test_dbg -l $(LIBNAME) -l $(TESTLIB) $(FLAGS)
+	cd test && ./test_dbg
 
 # BUILDS
 build/%.o: %.cpp
@@ -39,6 +44,10 @@ test/test_i386.o: test/test_disass_i386.cpp
 	
 test/test_x86_64.o: test/test_disass_x86_64.cpp
 	$(CC) -c test/test_disass_i386.cpp -o test_disass_i386.o $(FLAGS)
+
+test/test_dbg.o: test/test_dbg.cpp
+	$(CC) -c test/test_dbg.cpp -o test/test_dbg.o $(FLAGS)
+
 	
 examples:
 	gcc examples/test.c -o examples/test_32 -m32
