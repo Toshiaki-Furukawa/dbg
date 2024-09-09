@@ -9,7 +9,6 @@
 
 #include <sstream>
 #include <fstream>
-//#include <algorithm>
 #include <sys/uio.h>
 
 #include <cstdint>
@@ -49,7 +48,7 @@ void Debugger::enable_breakpoint(Breakpoint *bp) {
 
   auto data = ptrace(PTRACE_PEEKDATA, proc, bp->get_addr(), NULL);
   auto mod_data = ((data & ~0xff) | 0xcc);
-    
+
   ptrace(PTRACE_POKEDATA, proc, bp->get_addr(), mod_data);
   bp->enable();
 }
@@ -108,7 +107,7 @@ void Debugger::read_vmmap() {
   }
 
   vmmap.clear(); // Chage this just for testing
-    
+
   for (std::string line; getline(vmmap_file, line); ) {
     MapEntry map(line);
     if (map.get_start() == 0) {
@@ -129,7 +128,7 @@ std::string Debugger::get_file_from_addr(uint64_t addr) {
       break;
     }
   }
- 
+
   if (entry == vmmap.end()) {
     //std::cout << "address not found" << std::endl; 
     return ret;
@@ -145,7 +144,7 @@ std::string Debugger::get_file_from_addr(uint64_t addr) {
 
 uint8_t *Debugger::get_bytes_from_file(std::string filename, uint64_t addr, uint32_t n) {
   auto file_entry = elf_table.find(filename);
- 
+
   if (file_entry == elf_table.end()) {
     std::cout << "filename invalid" << std::endl;
     return NULL;
@@ -209,7 +208,7 @@ Debugger::Debugger (const char *filename) : filename(filename) {
     std::cout << "Error while forking" << std::endl;  
     exit(-1);
   }
-  
+
   if (proc == 0) {
     personality(ADDR_NO_RANDOMIZE);
 
@@ -219,12 +218,6 @@ Debugger::Debugger (const char *filename) : filename(filename) {
   } else {
     waitpid(proc, &status, 0);
     ptrace(PTRACE_SETOPTIONS, proc, NULL, PTRACE_O_EXITKILL);
-
-    /*
-    if (elf->pie()) {
-      base_addr = read_vmmap_base();
-    }*/
-
 
     // get memory mapping of child process
     read_vmmap();
@@ -254,7 +247,7 @@ Debugger::~Debugger() {
   elf_table.clear();
 }
 
-void Debugger::reset() {          // WARNING: not working
+void Debugger::reset() {           
   kill(proc, SIGKILL);
   waitpid(proc, &status, 0);
 
@@ -267,7 +260,7 @@ void Debugger::reset() {          // WARNING: not working
   } else {
     std::cout << "No PIE" << std::endl;
   }
- 
+
   //base_addr = 0;
 
   proc = fork();
@@ -290,8 +283,8 @@ void Debugger::reset() {          // WARNING: not working
 
     update_regs();
 
-    for (Breakpoint bp: breakpoints) {
-      enable_breakpoint(&bp);
+    for (auto& bp_it : breakpoints) {
+      enable_breakpoint(&(bp_it.second));
     }
 
     return;
@@ -316,21 +309,20 @@ int Debugger::cont() {
   }
 
   if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP) {
-    for (Breakpoint bp: breakpoints) {
-      if (bp.get_addr() == regs.rip-1) {
-        disable_breakpoint(&bp);
-        regs.rip -= 1;
+    auto bp_it = breakpoints.find(regs.rip-1);
 
-        if (ptrace(PTRACE_SETREGS, proc, NULL, &regs) == -1) {
-          std::cout << "Error occured: could not set registers while handeling SIGTRAP" << std::endl;
-        }
+    if (bp_it != breakpoints.end()) {
+      disable_breakpoint(&(bp_it->second));
+      regs.rip -= 1;
 
-        single_step();
-
-        enable_breakpoint(&bp);
-        update_regs();
-        break;
+      if (ptrace(PTRACE_SETREGS, proc, NULL, &regs) == -1) {
+        std::cout << "Error occured: could not set registers while handeling SIGTRAP" << std::endl;
       }
+
+      single_step();
+
+      enable_breakpoint(&(bp_it->second));
+      update_regs();
     }
     return 1; 
   }  else {
@@ -353,14 +345,13 @@ void Debugger::single_step() {
 }
 
 //////////////////////
-//Breakpoint Functions
+// Breakpoint Functions
 ///////////////////////
 
 void Debugger::set_breakpoint(unsigned long addr) {
-  for (Breakpoint bp: breakpoints) {
-    if (bp.get_addr() == addr) {
-      return;
-    }
+  auto bp_it = breakpoints.find(addr);
+  if (bp_it != breakpoints.end()) {
+    return;
   }
 
   std::string filename = get_file_from_addr(addr);
@@ -381,27 +372,29 @@ void Debugger::set_breakpoint(unsigned long addr) {
 
   delete[] bytes;
 
-  //auto data = elf_file->get_byte_at_offset(offset);
-
   Breakpoint bp = Breakpoint(addr, data);
   enable_breakpoint(&bp);
 
-  breakpoints.emplace_back(Breakpoint(addr, data)); 
+  // TODO: check pass bp.
+  breakpoints.emplace(std::pair(addr, Breakpoint(addr, data))); 
 }
 
-void Debugger::delete_breakpoint(uint32_t idx) {
-  if (idx >= breakpoints.size()) {
+void Debugger::delete_breakpoint(uint64_t addr) {
+  auto bp_it =  breakpoints.find(addr);
+
+  if (bp_it == breakpoints.end()) {
     return;
   }
 
-  disable_breakpoint(&(breakpoints[idx]));
-    
-  breakpoints.erase(breakpoints.begin()+idx); 
+  disable_breakpoint(&(bp_it->second));
+
+  breakpoints.erase(bp_it); 
 }
 
 ////////////////////
 // DISASSEMBLE
 ////////////////////
+
 std::vector<Instruction> Debugger::disassemble(uint64_t addr, size_t n) { //disas_mode mode) {
   std::vector<Instruction> instructions;
 
@@ -419,7 +412,7 @@ std::vector<Instruction> Debugger::disassemble(uint64_t addr, size_t n) { //disa
     return instructions;
   }
 
-  
+
   switch (arch) {
     case ARCH_X86_64:
       instructions = disassemble_x86_64(addr, bytes, n);
@@ -434,7 +427,6 @@ std::vector<Instruction> Debugger::disassemble(uint64_t addr, size_t n) { //disa
 
   delete[] bytes;
 
-  //for (auto instr = instructions.begin();  instr != instructions.end(); ++instr) {
   for (auto& instr : instructions) {
     instr.set_prefix("   ");
 
@@ -442,11 +434,9 @@ std::vector<Instruction> Debugger::disassemble(uint64_t addr, size_t n) { //disa
       instr.set_prefix(" > ");
     }
 
-    for (auto bp : breakpoints) {
-      if (bp.get_addr() == instr.get_addr()) {
-        instr.set_prefix(" * ");
-        break;
-      } 
+    auto bp_it = breakpoints.find(instr.get_addr());
+    if (bp_it != breakpoints.end()) {
+      instr.set_prefix(" * ");
     }
   } 
 
@@ -500,7 +490,7 @@ std::vector<uint64_t> Debugger::get_long(uint64_t addr, size_t n) {
   }
 
 
- for (size_t i = 0; i < n; i++) {
+  for (size_t i = 0; i < n; i++) {
     uint64_t addr = static_cast<uint64_t>(bytes[i*8]);
     addr += static_cast<uint64_t>(bytes[i*8+1]) << 8;
     addr += static_cast<uint64_t>(bytes[i*8+2]) << 2*8;
@@ -528,7 +518,7 @@ std::vector<uint32_t> Debugger::get_word(uint64_t addr, size_t n) {
   }
 
 
- for (size_t i = 0; i < n; i++) {
+  for (size_t i = 0; i < n; i++) {
     uint32_t addr = static_cast<uint32_t>(bytes[i*4]);
     addr += bytes[i*4+1] << 8;
     addr += bytes[i*4+2] << 2*8;
@@ -566,8 +556,8 @@ void Debugger::print_vmmap() {
 
 
 void Debugger::list_breakpoints() {
-  for (size_t i = 0; i < breakpoints.size(); i++) {
-    std::cout << "brekpoint nr. " << i << " at " << std::hex << breakpoints[i].get_addr() << std::endl;
+    for(auto& bp_it : breakpoints) {
+    std::cout << "breakpoint at 0x" << std::hex << bp_it.second.get_addr() << std::endl;
   }
 }
 
@@ -580,4 +570,3 @@ void Debugger::print_symbols() {
 void Debugger::print_sections() {
   elf->print_sections();
 }
-
