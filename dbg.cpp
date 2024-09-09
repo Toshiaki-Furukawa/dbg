@@ -67,10 +67,14 @@ void Debugger::disable_breakpoint(Breakpoint *bp) {
 }
 
 int Debugger::update_regs() {
-  if (ptrace(PTRACE_GETREGS, proc, NULL, &regs) == -1) {
+  user_regs_struct regs_struct;
+  if (ptrace(PTRACE_GETREGS, proc, NULL, &regs_struct) == -1) {
     std::cout << "could not load registers";
     return -1;
   } 
+
+  regs->load(&regs_struct);
+
   return 1;
 }
 
@@ -201,6 +205,8 @@ Debugger::Debugger (const char *filename) : filename(filename) {
       break;
   }
 
+  regs = new Registers(arch);
+
   //base_addr = 0;
 
   proc = fork();
@@ -240,6 +246,7 @@ Debugger::Debugger (const char *filename) : filename(filename) {
 
 Debugger::~Debugger() {
   delete elf;
+  delete regs;
   for (auto it : elf_table) {
     delete it.second;
   }
@@ -308,14 +315,20 @@ int Debugger::cont() {
     return -1;
   }
 
+  user_regs_struct regs_struct;
+
+  if (ptrace(PTRACE_GETREGS, proc, NULL, &regs_struct) == -1) {
+    std::cout << "Error occured: could not get registers while handeling SIGTRAP" << std::endl;
+  }
+
   if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP) {
-    auto bp_it = breakpoints.find(regs.rip-1);
+    auto bp_it = breakpoints.find(regs_struct.rip-1);
 
     if (bp_it != breakpoints.end()) {
       disable_breakpoint(&(bp_it->second));
-      regs.rip -= 1;
+      regs_struct.rip -= 1;
 
-      if (ptrace(PTRACE_SETREGS, proc, NULL, &regs) == -1) {
+      if (ptrace(PTRACE_SETREGS, proc, NULL, &regs_struct) == -1) {
         std::cout << "Error occured: could not set registers while handeling SIGTRAP" << std::endl;
       }
 
@@ -430,7 +443,7 @@ std::vector<Instruction> Debugger::disassemble(uint64_t addr, size_t n) { //disa
   for (auto& instr : instructions) {
     instr.set_prefix("   ");
 
-    if (instr.get_addr() == regs.rip) {
+    if (instr.get_addr() == regs->get_pc()) {
       instr.set_prefix(" > ");
     }
 
@@ -537,15 +550,18 @@ std::vector<uint32_t> Debugger::get_word(uint64_t addr, size_t n) {
 // print functions
 /////////////////////
 uint64_t Debugger::get_rip() {
-  return regs.rip;
+  return regs->get_pc();
 }
 
 
 void Debugger::print_regs() {
+  /*
   std::cout << "rsp: 0x" << std::hex << regs.rsp << std::endl;
   std::cout << "rax: 0x" << std::hex << regs.rax << std::endl;
   std::cout << "rbp: 0x" << std::hex << regs.rbp << std::endl;
-  std::cout << "rip: 0x" << std::hex << regs.rip << std::endl;
+  std::cout << "rip: 0x" << std::hex << regs.rip << std::endl;*/
+  std::cout << regs->str() << std::endl;
+  
 }
 
 void Debugger::print_vmmap() {

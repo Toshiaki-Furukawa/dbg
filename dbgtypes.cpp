@@ -2,9 +2,46 @@
 #include <sstream>
 #include <vector>
 #include <fstream>
+#include <sys/user.h>
 
 #include "elf.hpp"
 #include "dbgtypes.hpp"
+
+
+Registers::Registers(arch_t arch) : arch(arch) {}
+
+void Registers::load_x86_64(user_regs_struct *regs) {
+  pc = regs->rip;
+  bp = regs->rbp;
+  sp = regs->rsp; 
+
+  registers["rax"] = regs->rax;
+  registers["rdi"] = regs->rdi;
+  registers["rsi"] = regs->rsi;
+  registers["rcx"] = regs->rcx;
+  registers["rdx"] = regs->rdx;
+
+  registers["rsp"] = regs->rsp;
+  registers["rbp"] = regs->rbp;
+  registers["rip"] = regs->rip;
+}
+
+void Registers::load(user_regs_struct *regs) {
+  load_x86_64(regs);
+}
+
+uint64_t Registers::get_pc() {
+  return pc;
+}
+
+std::string Registers::str() {
+  std::stringstream ss;
+
+  for (auto& kv : registers) {
+    ss << kv.first << ": 0x" << std::hex << kv.second << std::endl;
+  }
+  return ss.str();
+}
 
 
 Breakpoint::Breakpoint(uint64_t bp_addr, uint8_t orig_data) 
