@@ -13,6 +13,7 @@
 
 #include <cstdint>
 #include <map>
+#include <unordered_map>
 #include "elftypes.hpp"
 #include "elf.hpp"
 #include "dbgtypes.hpp"
@@ -27,7 +28,7 @@ private:
   int status;
   siginfo_t signal;
 
-  std::vector<Breakpoint> breakpoints;
+  std::unordered_map<uint64_t, Breakpoint> breakpoints;
   std::vector<MapEntry> vmmap;
   std::map<std::string, ELF*> elf_table;
 
@@ -49,7 +50,7 @@ private:
   void read_vmmap();
 
   std::string get_file_from_addr(uint64_t addr);
-  
+
   uint8_t *get_bytes_from_file(std::string filename, uint64_t addr, uint32_t n);
 
   uint8_t *get_bytes_from_memory(uint64_t addr, uint32_t n);
@@ -68,11 +69,11 @@ public:
 
   void set_breakpoint(unsigned long addr);
 
-  void delete_breakpoint(uint32_t idx);
+  void delete_breakpoint(uint64_t addr);
 
 
   std::vector<Instruction> disassemble(uint64_t addr, size_t n);
-  
+
   std::vector<Instruction> disassemble(std::string symbol); 
 
 
