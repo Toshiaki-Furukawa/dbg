@@ -10,19 +10,55 @@
 
 Registers::Registers(arch_t arch) : arch(arch) {}
 
+/* regs struct
+
+struct user_regs_struct
+{
+  unsigned long r15;
+  unsigned long r14;
+  unsigned long r13;
+  unsigned long r12;
+  unsigned long rbp;
+  unsigned long rbx;
+  unsigned long r11;
+  unsigned long r10;
+  unsigned long r9;
+  unsigned long r8;
+  unsigned long rax;
+  unsigned long rcx;
+  unsigned long rdx;
+  unsigned long rsi;
+  unsigned long rdi;
+  unsigned long orig_rax;
+  unsigned long rip;
+  unsigned long cs;
+  unsigned long eflags;
+  unsigned long rsp;
+  unsigned long ss;
+  unsigned long fs_base;
+  unsigned long gs_base;
+  unsigned long ds;
+  unsigned long es;
+  unsigned long fs;
+  unsigned long gs;
+};
+
+
+*/
 void Registers::load_x86_64(user_regs_struct *regs) {
   pc = regs->rip;
   bp = regs->rbp;
   sp = regs->rsp; 
 
   registers["rax"] = regs->rax;
-  registers["rdi"] = regs->rdi;
-  registers["rsi"] = regs->rsi;
   registers["rcx"] = regs->rcx;
   registers["rdx"] = regs->rdx;
+  registers["rsi"] = regs->rsi;
+  registers["rdi"] = regs->rdi;
+  registers["rbx"] = regs->rbx;
 
-  registers["rsp"] = regs->rsp;
   registers["rbp"] = regs->rbp;
+  registers["rsp"] = regs->rsp;
   registers["rip"] = regs->rip;
 }
 
