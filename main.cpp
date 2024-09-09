@@ -31,12 +31,12 @@ command_t get_cmd() {
   std::size_t end = cmd.find(' ', start);
 
   ret.cmd = cmd.substr(start,  end-start);
-    
+
   while ((start = cmd.find_first_not_of(' ', end)) != std::string::npos) {
     end = cmd.find(' ', start);
     ret.args.emplace_back(cmd.substr(start, end-start));
   }
-  
+
   return ret;
 }
 
@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
   // run
   Debugger dbg = Debugger(filename);
   int ret_sig = 1;
- 
+
   while (true) {
     std::cout << "wg> ";
     command_t cmd = get_cmd();
@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
       if (!cmd.args.empty()) {
         const char *hex_addr = cmd.args[0].c_str();
         uint64_t bp_addr = strtol(hex_addr, NULL, 16);
-             
+
         dbg.set_breakpoint(bp_addr);
 
         std::cout << "bp set at: " << std::hex << bp_addr << std::endl;
@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
     } else if  (cmd.cmd == "s") {
       dbg.single_step(); 
       dbg.print_regs();
-    
+
     } else if (cmd.cmd == "i") {
       if (!cmd.args.empty()) {
         if (cmd.args[0] == "bps") {
@@ -119,7 +119,7 @@ int main(int argc, char *argv[]) {
           std::cout << "could not read data" << std::endl;
           continue;
         }
-     
+
         /*if (content.size() != 2*n) {
           std::cout << "could not read data" << std::endl;
           continue;
@@ -131,14 +131,14 @@ int main(int argc, char *argv[]) {
       }
     } else if (cmd.cmd == "D") {
       if (!cmd.args.empty()) {
-        uint32_t idx = atoi(cmd.args[0].c_str());
-        dbg.delete_breakpoint(idx);
-        std::cout << "deleted breakpoint nr.: " << idx << std::endl;
+        uint64_t addr = std::stoul(cmd.args[0].c_str(), NULL, 16);
+        dbg.delete_breakpoint(addr);
+        std::cout << "deleted breakpoint at: 0x" << std::hex << addr << std::endl;
       }
     } else if (cmd.cmd == "dw") {
       if (cmd.args.size() == 2) {
         size_t n = std::stoi(cmd.args[1].c_str());
-        uint64_t addr =  std::strtol(cmd.args[0].c_str(), NULL, 16);
+        uint64_t addr =  std::stoul(cmd.args[0].c_str(), NULL, 16);
 
         std::cout << "disassembling " << std::hex << addr  << ":" << std::endl; 
 
@@ -161,7 +161,7 @@ int main(int argc, char *argv[]) {
         for (auto instr: instructions) {
           std::cout << instr.str() << std::endl;
         }
-        
+
       }
     } else if (cmd.cmd == "ds") {
       if (cmd.args.size() == 1) {
@@ -177,7 +177,7 @@ int main(int argc, char *argv[]) {
       }
     } else if (cmd.cmd == "vmmap") {
       dbg.print_vmmap();
-    
+
     } else if (cmd.cmd == "quit") {
       break;
     }
