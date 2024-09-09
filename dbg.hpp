@@ -23,16 +23,17 @@ private:
   const char *filename;
   ELF *elf;
 
-  user_regs_struct regs;
+  //user_regs_struct regs;
+  Registers *regs;
   pid_t proc;
   int status;
   siginfo_t signal;
 
   std::unordered_map<uint64_t, Breakpoint> breakpoints;
   std::vector<MapEntry> vmmap;
-  std::map<std::string, ELF*> elf_table;
+  std::unordered_map<std::string, ELF*> elf_table;
 
-  architecture arch;
+  arch_t arch;
 
   void enable_breakpoint(Breakpoint *bp);
 

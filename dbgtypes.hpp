@@ -4,6 +4,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <sys/user.h>
 #include "elf.hpp"
 
 enum disas_mode {
@@ -11,7 +12,7 @@ enum disas_mode {
   DISAS_MODE_BYTE
 };
 
-enum architecture {
+enum arch_t {
   ARCH_X86_64,
   ARCH_X86_32,  
   ARCH_UNDEF, 
@@ -21,6 +22,29 @@ struct command {
   std::string cmd;
   std::vector<std::string> args;
 } typedef command_t;
+
+class Registers {
+private: 
+  uint64_t pc;
+  uint64_t bp;
+  uint64_t sp;
+
+  std::map<std::string, uint64_t> registers;
+
+  arch_t arch;
+
+  void load_x86_64(user_regs_struct *regs);
+
+public:
+  Registers(arch_t arch);
+    
+  void load(user_regs_struct *regs);
+
+  uint64_t get_pc();
+
+  std::string str();
+
+};
 
 class Breakpoint {
 private:

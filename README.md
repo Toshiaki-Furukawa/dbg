@@ -16,6 +16,7 @@ make
 ```
 b 0xADDR         set breakpoint at 0xADDR
 c                continue
+s                single step
 r                reset
 
 i sym            print symbol information
