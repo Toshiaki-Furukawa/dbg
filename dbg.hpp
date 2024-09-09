@@ -31,7 +31,7 @@ private:
 
   std::unordered_map<uint64_t, Breakpoint> breakpoints;
   std::vector<MapEntry> vmmap;
-  std::map<std::string, ELF*> elf_table;
+  std::unordered_map<std::string, ELF*> elf_table;
 
   arch_t arch;
 

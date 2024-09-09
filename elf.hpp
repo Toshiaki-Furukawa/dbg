@@ -4,6 +4,7 @@
 #include <string>
 #include <cstdint>
 #include <elf.h>
+#include <unordered_map>
 #include "elftypes.hpp"
 #include "disass.hpp"
 
@@ -17,8 +18,8 @@ private:
   uint64_t base;
 
   //std::vector<Section> sections;
-  std::map<std::string, Section> sections;
-  std::map<std::string, Symbol> symtab;
+  std::unordered_map<std::string, Section> sections;
+  std::unordered_map<std::string, Symbol> symtab;
   // security features
   bool is_pie; 
  
