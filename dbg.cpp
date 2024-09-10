@@ -254,7 +254,7 @@ Debugger::~Debugger() {
   elf_table.clear();
 }
 
-void Debugger::reset() {           
+void Debugger::reset() { 
   kill(proc, SIGKILL);
   waitpid(proc, &status, 0);
 
@@ -265,7 +265,7 @@ void Debugger::reset() {
   if (elf->pie()) {
     std::cout << "File is PIE" << std::endl;
   } else {
-    std::cout << "No PIE" << std::endl;
+    std::cout << "File is not PIE" << std::endl;
   }
 
   //base_addr = 0;

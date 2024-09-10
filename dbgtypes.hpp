@@ -29,11 +29,15 @@ private:
   uint64_t bp;
   uint64_t sp;
 
-  std::map<std::string, uint64_t> registers;
+  std::unordered_map<std::string, uint64_t> registers;
 
   arch_t arch;
 
+  //std::string regs_print_order_x86_64[];
+
   void load_x86_64(user_regs_struct *regs);
+
+  void load_i386(user_regs_struct *regs);
 
 public:
   Registers(arch_t arch);
@@ -41,6 +45,11 @@ public:
   void load(user_regs_struct *regs);
 
   uint64_t get_pc();
+
+  
+  std::string str_x86_64();
+
+  std::string str_i386();
 
   std::string str();
 
