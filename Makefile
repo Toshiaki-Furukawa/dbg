@@ -1,5 +1,5 @@
 CC = g++
-LIBNAME = capstone
+LIBS = -lcapstone -lreadline
 TESTLIB = gtest
 FLAGS = -Wall -std=c++17
 
@@ -9,25 +9,25 @@ DISASS_OBJECTS = build/disass.o
 DBG_OBJECTS = build/dbg.o build/dbgtypes.o build/elf.o build/elftypes.o build/disass.o 
 
 all: $(OBJECTS)
-	$(CC) $(OBJECTS) -o wg -l $(LIBNAME) $(FLAGS)
+	$(CC) $(OBJECTS) -o wg  $(LIBS) $(FLAGS)
 
 elf: $(ELF_OBJECTS)
-	$(CC) $(ELF_OBJECTS) -o elf -Wall -l $(LIBNAME) $(FLAGS)
+	$(CC) $(ELF_OBJECTS) -o elf -Wall  $(LIBS) $(FLAGS)
 
 disass: $(DISASS_OBJECTS)
 	$(CC) $(DISASS_OBJECTS) -o disass -Wall -l capstone
 
 test_elf: $(ELF_OBJECTS) test/test_elf.o
-	$(CC) $(ELF_OBJECTS) test/test_elf.o -o test/test_elf -l $(LIBNAME) -l $(TESTLIB) $(FLAGS)
+	$(CC) $(ELF_OBJECTS) test/test_elf.o -o test/test_elf  $(LIBS) -l $(TESTLIB) $(FLAGS)
 	cd test && ./test_elf
 
 test_disass: $(DISASS_OBJECTS) test/test_disass_i386.o test/test_disass_x86_64.o
-	$(CC) $(DISASS_OBJECTS) test/test_disass_i386.o -o test/test_disass_i386 -l $(LIBNAME) -l $(TESTLIB) $(FLAGS)
-	$(CC) $(DISASS_OBJECTS) test/test_disass_x86_64.o -o test/test_disass_x86_64 -l $(LIBNAME) -l $(TESTLIB) $(FLAGS)
+	$(CC) $(DISASS_OBJECTS) test/test_disass_i386.o -o test/test_disass_i386  $(LIBS) -l $(TESTLIB) $(FLAGS)
+	$(CC) $(DISASS_OBJECTS) test/test_disass_x86_64.o -o test/test_disass_x86_64  $(LIBS) -l $(TESTLIB) $(FLAGS)
 	cd test && ./test_disass_i386 && ./test_disass_x86_64
 
 test_dbg: $(DBG_OBJECTS) test/test_dbg.o
-	$(CC) $(DBG_OBJECTS) test/test_dbg.o -o test/test_dbg -l $(LIBNAME) -l $(TESTLIB) $(FLAGS)
+	$(CC) $(DBG_OBJECTS) test/test_dbg.o -o test/test_dbg  $(LIBS) -l $(TESTLIB) $(FLAGS)
 	cd test && ./test_dbg
 
 # BUILDS

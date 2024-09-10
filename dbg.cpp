@@ -206,9 +206,6 @@ Debugger::Debugger (const char *filename) : filename(filename) {
       break;
   }
 
-
-  //base_addr = 0;
-
   proc = fork();
   if (proc == -1) {
     std::cout << "Error while forking" << std::endl;  
@@ -269,7 +266,6 @@ void Debugger::reset() {
     std::cout << "File is not PIE" << std::endl;
   }
 
-  //base_addr = 0;
 
   proc = fork();
   if (proc == -1) {
@@ -289,7 +285,6 @@ void Debugger::reset() {
 
     read_vmmap();
 
-    //update_regs();
     regs->peek(proc);
 
     for (auto& bp_it : breakpoints) {
@@ -310,7 +305,6 @@ int Debugger::cont() {
 
   read_vmmap();    
 
-  //update_regs();
 
   if (ptrace(PTRACE_GETSIGINFO, proc, NULL, &signal)  == -1) {
     std::cout << "cant decode signal..." << std::endl;
@@ -390,8 +384,7 @@ void Debugger::set_breakpoint(unsigned long addr) {
   Breakpoint bp = Breakpoint(addr, data);
   enable_breakpoint(&bp);
 
-  // TODO: check pass bp.
-  breakpoints.emplace(std::pair(addr, Breakpoint(addr, data))); 
+  breakpoints.emplace(std::pair(addr, bp)); 
 }
 
 void Debugger::delete_breakpoint(uint64_t addr) {
@@ -551,17 +544,12 @@ std::vector<uint32_t> Debugger::get_word(uint64_t addr, size_t n) {
 //////////////////////
 // print functions
 /////////////////////
-uint64_t Debugger::get_rip() {
+uint64_t Debugger::get_pc() {
   return regs->get_pc();
 }
 
 
 void Debugger::print_regs() {
-  /*
-  std::cout << "rsp: 0x" << std::hex << regs.rsp << std::endl;
-  std::cout << "rax: 0x" << std::hex << regs.rax << std::endl;
-  std::cout << "rbp: 0x" << std::hex << regs.rbp << std::endl;
-  std::cout << "rip: 0x" << std::hex << regs.rip << std::endl;*/
   std::cout << regs->str() << std::endl;
   
 }
