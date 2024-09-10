@@ -84,8 +84,7 @@ public:
 
   std::vector<uint32_t> get_word(uint64_t addr, size_t n);
 
-  uint64_t get_rip();
-
+  uint64_t get_pc();
 
   void print_regs();
 

@@ -18,23 +18,28 @@
 #include "dbg.hpp"
 #include "disass.hpp"
 
+#include <readline/readline.h>
+#include <readline/history.h>
+
 command_t get_cmd() { 
   command_t ret;
   std::string cmd;
 
-  std::getline(std::cin, cmd);
-  if (cmd == "") {
-    return ret;
+
+  char *inpt = NULL;
+  inpt = readline("wg> ");
+  add_history(inpt);
+
+  std::stringstream ss {inpt};
+  std::string item;
+
+  // split
+  while(std::getline(ss, item, ' ')) {
+    ret.args.push_back(item);
   }
 
-  std::size_t start = cmd.find_first_not_of(' ', 0);
-  std::size_t end = cmd.find(' ', start);
-
-  ret.cmd = cmd.substr(start,  end-start);
-
-  while ((start = cmd.find_first_not_of(' ', end)) != std::string::npos) {
-    end = cmd.find(' ', start);
-    ret.args.emplace_back(cmd.substr(start, end-start));
+  if (!ret.args.empty()) { 
+    ret.cmd = ret.args[0];
   }
 
   return ret;
@@ -54,7 +59,6 @@ int main(int argc, char *argv[]) {
   int ret_sig = 1;
 
   while (true) {
-    std::cout << "wg> ";
     command_t cmd = get_cmd();
 
     if (cmd.cmd == "c") {
@@ -70,8 +74,8 @@ int main(int argc, char *argv[]) {
     } else if (cmd.cmd == "r") {
       dbg.reset();
     } else if (cmd.cmd == "b") {
-      if (!cmd.args.empty()) {
-        const char *hex_addr = cmd.args[0].c_str();
+      if (cmd.args.size() >= 2) {
+        const char *hex_addr = cmd.args[1].c_str();
         uint64_t bp_addr = strtol(hex_addr, NULL, 16);
 
         dbg.set_breakpoint(bp_addr);
@@ -80,23 +84,23 @@ int main(int argc, char *argv[]) {
       }
     } else if  (cmd.cmd == "s") {
       dbg.single_step(); 
-      std::cout << "pc at: 0x" << std::hex << dbg.get_rip() << std::endl;
+      std::cout << "pc at: 0x" << std::hex << dbg.get_pc() << std::endl;
     } else if (cmd.cmd == "i") {
-      if (!cmd.args.empty()) {
-        if (cmd.args[0] == "bps") {
+      if (cmd.args.size() == 2) {
+        if (cmd.args[1] == "bps") {
           dbg.list_breakpoints();
-        } else if (cmd.args[0] == "regs") {
+        } else if (cmd.args[1] == "regs") {
           dbg.print_regs();
-        } else if (cmd.args[0] == "symbols" || cmd.args[0] == "sym" || cmd.args[0] == "functions") {
+        } else if (cmd.args[1] == "symbols" || cmd.args[1] == "sym" || cmd.args[1] == "functions") {
           dbg.print_symbols();
-        } else if (cmd.args[0] == "sections" || cmd.args[0] == "sec") {
+        } else if (cmd.args[1] == "sections" || cmd.args[1] == "sec") {
           dbg.print_sections();
         }
       }
     } else if (cmd.cmd == "xl") {
-      if (cmd.args.size() == 2) {
-        uint64_t addr = std::strtol(cmd.args[0].c_str(), NULL, 16);
-        size_t n = std::stoi(cmd.args[1].c_str());
+      if (cmd.args.size() == 3) {
+        uint64_t addr = std::strtol(cmd.args[1].c_str(), NULL, 16);
+        size_t n = std::stoi(cmd.args[2].c_str());
         auto content = dbg.get_long(addr, n);
 
         if (content.size() != n) {
@@ -109,35 +113,29 @@ int main(int argc, char *argv[]) {
         }
       }
     } else if (cmd.cmd == "xw") {
-      if (cmd.args.size() == 2) {
-        uint64_t addr = std::strtol(cmd.args[0].c_str(), NULL, 16);
-        size_t n = std::stoi(cmd.args[1].c_str());
+      if (cmd.args.size() == 3) {
+        uint64_t addr = std::strtol(cmd.args[1].c_str(), NULL, 16);
+        size_t n = std::stoi(cmd.args[2].c_str());
         auto content = dbg.get_word(addr, n);
 
         if (content.empty()) {
           std::cout << "could not read data" << std::endl;
           continue;
         }
-
-        /*if (content.size() != 2*n) {
-          std::cout << "could not read data" << std::endl;
-          continue;
-        }*/
-
         for (size_t i = 0; i < n; i++) {
           std::cout << "0x" << std::hex << addr + i*4 << ": 0x" << std::hex << content[i] << std::endl;
         }
       }
     } else if (cmd.cmd == "D") {
-      if (!cmd.args.empty()) {
-        uint64_t addr = std::stoul(cmd.args[0].c_str(), NULL, 16);
+      if (cmd.args.size() == 2) {
+        uint64_t addr = std::stoul(cmd.args[1].c_str(), NULL, 16);
         dbg.delete_breakpoint(addr);
         std::cout << "deleted breakpoint at: 0x" << std::hex << addr << std::endl;
       }
     } else if (cmd.cmd == "dw") {
-      if (cmd.args.size() == 2) {
-        size_t n = std::stoi(cmd.args[1].c_str());
-        uint64_t addr =  std::stoul(cmd.args[0].c_str(), NULL, 16);
+      if (cmd.args.size() == 3) {
+        size_t n = std::stoi(cmd.args[2].c_str());
+        uint64_t addr =  std::stoul(cmd.args[1].c_str(), NULL, 16);
 
         std::cout << "disassembling " << std::hex << addr  << ":" << std::endl; 
 
@@ -149,9 +147,9 @@ int main(int argc, char *argv[]) {
 
       } 
     } else if (cmd.cmd == "db") {
-      if (cmd.args.size() == 2) {
-        size_t n = std::stoi(cmd.args[1].c_str());
-        uint64_t addr =  std::strtol(cmd.args[0].c_str(), NULL, 16);
+      if (cmd.args.size() == 3) {
+        size_t n = std::stoi(cmd.args[2].c_str());
+        uint64_t addr =  std::strtol(cmd.args[1].c_str(), NULL, 16);
 
         std::cout << "disassembling " << std::hex << addr  << ":" << std::endl; 
 
@@ -163,8 +161,8 @@ int main(int argc, char *argv[]) {
 
       }
     } else if (cmd.cmd == "ds") {
-      if (cmd.args.size() == 1) {
-        std::string symbol = cmd.args[0];
+      if (cmd.args.size() == 2) {
+        std::string symbol = cmd.args[1];
 
         std::cout << "disassembling " << symbol  << ":" << std::endl; 
         auto instructions = dbg.disassemble(symbol); 
