@@ -80,8 +80,7 @@ int main(int argc, char *argv[]) {
       }
     } else if  (cmd.cmd == "s") {
       dbg.single_step(); 
-      dbg.print_regs();
-
+      std::cout << "pc at: 0x" << std::hex << dbg.get_rip() << std::endl;
     } else if (cmd.cmd == "i") {
       if (!cmd.args.empty()) {
         if (cmd.args[0] == "bps") {
