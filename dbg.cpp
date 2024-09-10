@@ -66,6 +66,7 @@ void Debugger::disable_breakpoint(Breakpoint *bp) {
   bp->disable(); 
 }
 
+/*
 int Debugger::update_regs() {
   user_regs_struct regs_struct;
   if (ptrace(PTRACE_GETREGS, proc, NULL, &regs_struct) == -1) {
@@ -76,7 +77,7 @@ int Debugger::update_regs() {
   regs->load(&regs_struct);
 
   return 1;
-}
+}*/
 
 uint64_t Debugger::get_symbol_addr(std::string sym) {
   for (auto& entry : elf_table) {
@@ -205,7 +206,6 @@ Debugger::Debugger (const char *filename) : filename(filename) {
       break;
   }
 
-  regs = new Registers(arch);
 
   //base_addr = 0;
 
@@ -240,6 +240,7 @@ Debugger::Debugger (const char *filename) : filename(filename) {
       }
     }
 
+    regs = new Registers(arch);
     return;
   }
 }
@@ -288,7 +289,8 @@ void Debugger::reset() {
 
     read_vmmap();
 
-    update_regs();
+    //update_regs();
+    regs->peek(proc);
 
     for (auto& bp_it : breakpoints) {
       enable_breakpoint(&(bp_it.second));
@@ -302,41 +304,40 @@ int Debugger::cont() {
   ptrace(PTRACE_CONT, proc, NULL, NULL);
 
   waitpid(proc, &status, 0);
-  if (WIFEXITED(status)) {
+  if (WIFEXITED(status)) { 
     return 0;
   }
 
   read_vmmap();    
 
-  update_regs();
+  //update_regs();
 
   if (ptrace(PTRACE_GETSIGINFO, proc, NULL, &signal)  == -1) {
     std::cout << "cant decode signal..." << std::endl;
     return -1;
   }
 
-  user_regs_struct regs_struct;
-
-  if (ptrace(PTRACE_GETREGS, proc, NULL, &regs_struct) == -1) {
-    std::cout << "Error occured: could not get registers while handeling SIGTRAP" << std::endl;
-  }
+  regs->peek(proc);
 
   if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP) {
-    auto bp_it = breakpoints.find(regs_struct.rip-1);
+    auto pc = regs->get_pc();
 
+    auto bp_it = breakpoints.find(pc-1);
     if (bp_it != breakpoints.end()) {
       disable_breakpoint(&(bp_it->second));
-      regs_struct.rip -= 1;
 
-      if (ptrace(PTRACE_SETREGS, proc, NULL, &regs_struct) == -1) {
-        std::cout << "Error occured: could not set registers while handeling SIGTRAP" << std::endl;
-      }
+      regs->set_pc(pc - 1);
+      regs->poke(proc);
 
-      single_step();
-
+      single_step()
+; 
       enable_breakpoint(&(bp_it->second));
-      update_regs();
+      regs->peek(proc);
     }
+    
+    std::cout << "stopped at: 0x" << regs->get_pc() << std::endl;
+    std::cout << "bp at: 0x" << regs->get_bp() << std::endl;
+    std::cout << "sp at: 0x" << regs->get_sp() << std::endl;
     return 1; 
   }  else {
     return -1;
@@ -354,7 +355,8 @@ void Debugger::single_step() {
   }
 
   waitpid(proc, &status, 0);
-  update_regs();
+  //update_regs();
+  regs->peek(proc);
 }
 
 //////////////////////

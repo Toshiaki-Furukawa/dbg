@@ -35,17 +35,36 @@ private:
 
   //std::string regs_print_order_x86_64[];
 
-  void load_x86_64(user_regs_struct *regs);
+  void unpack_x86_64(user_regs_struct *regs);
+  struct user_regs_struct pack_x86_64();
 
-  void load_i386(user_regs_struct *regs);
+  void unpack_i386(user_regs_struct *regs);
+  struct user_regs_struct pack_i386();
 
 public:
   Registers(arch_t arch);
+
+  void reset_proc(pid_t pid);
     
-  void load(user_regs_struct *regs);
+  void peek(pid_t pid);
+
+  void poke(pid_t proc_pid);
 
   uint64_t get_pc();
+  
+  uint64_t get_sp();
 
+  uint64_t get_bp();
+  
+  uint64_t get_by_name(std::string name);
+
+  void set_by_name(std::string name, uint64_t value);
+
+  void set_pc(uint64_t value);
+
+  void set_sp(uint64_t value);
+
+  void set_bp(uint64_t value);
   
   std::string str_x86_64();
 

@@ -3,12 +3,13 @@
 #include <vector>
 #include <fstream>
 #include <sys/user.h>
+#include <sys/ptrace.h>
 
 #include "elf.hpp"
 #include "dbgtypes.hpp"
 
 
-Registers::Registers(arch_t arch) : arch(arch) { }
+Registers::Registers(arch_t arch) : arch(arch)  { }
 
 /* regs struct
 
@@ -45,7 +46,7 @@ struct user_regs_struct
 
 
 */
-void Registers::load_x86_64(user_regs_struct *regs) {
+void Registers::unpack_x86_64(user_regs_struct *regs) {
   pc = regs->rip;
   bp = regs->rbp;
   sp = regs->rsp; 
@@ -81,9 +82,50 @@ void Registers::load_x86_64(user_regs_struct *regs) {
 
   registers["fs_base"] = regs->fs_base;
   registers["gs_base"] = regs->gs_base;
+  registers["orig_rax"] = regs->orig_rax;
 }
 
-void Registers::load_i386(user_regs_struct *regs) {
+struct user_regs_struct Registers::pack_x86_64() {
+  struct user_regs_struct ureg_struct;
+
+
+  ureg_struct.rax = registers["rax"];
+  ureg_struct.rcx = registers["rcx"];
+  ureg_struct.rdx = registers["rdx"];
+  ureg_struct.rsi = registers["rsi"];
+  ureg_struct.rdx = registers["rdx"];
+  ureg_struct.rbx = registers["rbx"];
+  ureg_struct.rbp = registers["rbp"];
+  ureg_struct.rsp = registers["rsp"];
+
+  ureg_struct.r8 = registers["r8"];
+  ureg_struct.r9 = registers["r9"];
+  ureg_struct.r10 = registers["r10"];
+  ureg_struct.r11 = registers["r11"];
+  ureg_struct.r12 = registers["r12"];
+  ureg_struct.r13 = registers["r13"];
+  ureg_struct.r14 = registers["r14"];
+  ureg_struct.r15 = registers["r15"];
+
+  ureg_struct.rip = registers["rip"];
+
+  ureg_struct.eflags = registers["eflags"];
+
+  ureg_struct.cs = registers["cs"];
+  ureg_struct.ss = registers["ss"];
+  ureg_struct.ds = registers["ds"];
+  ureg_struct.es = registers["es"];
+  ureg_struct.fs = registers["fs"];
+  ureg_struct.gs = registers["gs"];
+
+  ureg_struct.fs_base = registers["fs_base"];
+  ureg_struct.gs_base = registers["gs_base"];
+  ureg_struct.orig_rax = registers["orig_rax"];
+
+  return ureg_struct;
+}
+
+void Registers::unpack_i386(user_regs_struct *regs) {
   pc = regs->rip;
   bp = regs->rbp;
   sp = regs->rsp; 
@@ -107,25 +149,176 @@ void Registers::load_i386(user_regs_struct *regs) {
   registers["es"] = regs->es;
   registers["fs"] = regs->fs;
   registers["gs"] = regs->gs;
+  registers["orig_eax"] = regs->orig_rax;
+
+
+  // not part of i386 but we need them
+  registers["r8"] = regs->r8;
+  registers["r9"] = regs->r9;
+  registers["r10"] = regs->r10;
+  registers["r11"] = regs->r11;
+  registers["r12"] = regs->r12;
+  registers["r13"] = regs->r13;
+  registers["r14"] = regs->r14;
+  registers["r15"] = regs->r15;
+  registers["fs_base"] = regs->fs_base;
+  registers["gs_base"] = regs->gs_base;
+
 }
 
+struct user_regs_struct Registers::pack_i386() {
+  struct user_regs_struct ureg_struct;
 
-void Registers::load(user_regs_struct *regs) {
+
+  ureg_struct.rax = registers["eax"];
+  ureg_struct.rcx = registers["ecx"];
+  ureg_struct.rdx = registers["edx"];
+  ureg_struct.rsi = registers["esi"];
+  ureg_struct.rdx = registers["edx"];
+  ureg_struct.rbx = registers["ebx"];
+  ureg_struct.rbp = registers["ebp"];
+  ureg_struct.rsp = registers["esp"];
+
+
+  ureg_struct.rip = registers["eip"];
+
+  ureg_struct.eflags = registers["eflags"];
+  ureg_struct.orig_rax = registers["orig_eax"];
+
+  ureg_struct.cs = registers["cs"];
+  ureg_struct.ss = registers["ss"];
+  ureg_struct.ds = registers["ds"];
+  ureg_struct.es = registers["es"];
+  ureg_struct.fs = registers["fs"];
+  ureg_struct.gs = registers["gs"];
+
+  // NOT actually part of 32 bit registers but we need them or everything breaks
+  ureg_struct.fs_base = registers["fs_base"];
+  ureg_struct.gs_base = registers["gs_base"];
+  ureg_struct.r8 = registers["r8"];
+  ureg_struct.r9 = registers["r9"];
+  ureg_struct.r10 = registers["r10"];
+  ureg_struct.r11 = registers["r11"];
+  ureg_struct.r12 = registers["r12"];
+  ureg_struct.r13 = registers["r13"];
+  ureg_struct.r14 = registers["r14"];
+  ureg_struct.r15 = registers["r15"];
+
+  return ureg_struct;
+}
+
+void Registers::peek(pid_t pid) {
+  user_regs_struct ureg_struct;
+  if (ptrace(PTRACE_GETREGS, pid, NULL, &ureg_struct) == -1) {
+    std::cout << "Error: ptrace failed to get registers" << std::endl;
+  }
+
   switch (arch) {
     case ARCH_X86_64:
-      load_x86_64(regs);
+      unpack_x86_64(&ureg_struct);
       break;
     case ARCH_X86_32:
-      load_i386(regs);
+      unpack_i386(&ureg_struct);
       break;
     default:
       return;
   }
 }
 
+void Registers::poke(pid_t pid) {
+  user_regs_struct ureg_struct;
+
+  switch (arch) {
+    case ARCH_X86_64:
+      ureg_struct = pack_x86_64();
+      break;
+    case ARCH_X86_32:
+      ureg_struct = pack_i386();
+      break;
+    default:
+      return;
+  }
+
+  //std::cout << "pc now: " << std::hex << ureg_struct.rip << std::endl;
+
+  if (ptrace(PTRACE_SETREGS, pid, NULL, &ureg_struct) == -1) {
+    std::cout << "could not write registers" << std::endl;
+  }
+}
+
+
 uint64_t Registers::get_pc() {
   return pc;
 }
+
+uint64_t Registers::get_sp() {
+  return sp;
+}
+
+uint64_t Registers::get_bp() {
+  return bp;
+}
+
+uint64_t Registers::get_by_name(std::string name) {
+  auto it = registers.find(name);
+  if (it == registers.end()) {
+    return 0;
+  }
+  return it->second;
+}
+
+void Registers::set_pc(uint64_t value) {
+  pc = value;
+  switch (arch) {
+    case ARCH_X86_64:
+      registers["rip"] = value;
+      break;
+    case ARCH_X86_32:
+      registers["eip"] = value;
+      break;
+    default:
+      return;
+  }
+}
+
+void Registers::set_bp(uint64_t value) {
+  bp = value;
+  switch (arch) {
+    case ARCH_X86_64:
+      registers["rbp"] = value;
+      break;
+    case ARCH_X86_32:
+      registers["ebp"] = value;
+      break;
+    default:
+      return;
+  }
+}
+
+void Registers::set_sp(uint64_t value) {
+  sp = value;
+  switch (arch) {
+    case ARCH_X86_64:
+      registers["rsp"] = value;
+      break;
+    case ARCH_X86_32:
+      registers["esp"] = value;
+      break;
+    default:
+      return;
+  }
+}
+
+void Registers::set_by_name(std::string name, uint64_t value) {
+  auto it = registers.find(name);
+  if (it == registers.end()) {
+    return;
+  }
+
+  it->second = value;
+}
+
+
 
 std::string Registers::str_x86_64() {
   std::stringstream ss;
@@ -149,6 +342,7 @@ std::string Registers::str_i386() {
   }
   return ss.str();
 }
+
 
 std::string Registers::str() {
   switch (arch) {
