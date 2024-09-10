@@ -8,7 +8,7 @@
 #include "dbgtypes.hpp"
 
 
-Registers::Registers(arch_t arch) : arch(arch) {}
+Registers::Registers(arch_t arch) : arch(arch) { }
 
 /* regs struct
 
@@ -56,27 +56,109 @@ void Registers::load_x86_64(user_regs_struct *regs) {
   registers["rsi"] = regs->rsi;
   registers["rdi"] = regs->rdi;
   registers["rbx"] = regs->rbx;
-
   registers["rbp"] = regs->rbp;
   registers["rsp"] = regs->rsp;
+
+  registers["r8"] = regs->r8;
+  registers["r9"] = regs->r9;
+  registers["r10"] = regs->r10;
+  registers["r11"] = regs->r11;
+  registers["r12"] = regs->r12;
+  registers["r13"] = regs->r13;
+  registers["r14"] = regs->r14;
+  registers["r15"] = regs->r15;
+
   registers["rip"] = regs->rip;
+
+  registers["eflags"] = regs->eflags;
+
+  registers["cs"] = regs->cs;
+  registers["ss"] = regs->ss;
+  registers["ds"] = regs->ds;
+  registers["es"] = regs->es;
+  registers["fs"] = regs->fs;
+  registers["gs"] = regs->gs;
+
+  registers["fs_base"] = regs->fs_base;
+  registers["gs_base"] = regs->gs_base;
 }
 
+void Registers::load_i386(user_regs_struct *regs) {
+  pc = regs->rip;
+  bp = regs->rbp;
+  sp = regs->rsp; 
+
+  registers["eax"] = regs->rax;
+  registers["ecx"] = regs->rcx;
+  registers["edx"] = regs->rdx;
+  registers["esi"] = regs->rsi;
+  registers["edi"] = regs->rdi;
+  registers["ebx"] = regs->rbx;
+  registers["ebp"] = regs->rbp;
+  registers["esp"] = regs->rsp;
+
+  registers["eip"] = regs->rip;
+
+  registers["eflags"] = regs->eflags;
+
+  registers["cs"] = regs->cs;
+  registers["ss"] = regs->ss;
+  registers["ds"] = regs->ds;
+  registers["es"] = regs->es;
+  registers["fs"] = regs->fs;
+  registers["gs"] = regs->gs;
+}
+
+
 void Registers::load(user_regs_struct *regs) {
-  load_x86_64(regs);
+  switch (arch) {
+    case ARCH_X86_64:
+      load_x86_64(regs);
+      break;
+    case ARCH_X86_32:
+      load_i386(regs);
+      break;
+    default:
+      return;
+  }
 }
 
 uint64_t Registers::get_pc() {
   return pc;
 }
 
-std::string Registers::str() {
+std::string Registers::str_x86_64() {
   std::stringstream ss;
+  const std::string regs_print_order_x86_64[] = {"rax", "rcx", "rdx", "rsi", "rdi", "rbx", "rbp", "rsp", 
+                              "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", 
+                              "rip", "eflags", "cs", "ss", "ds", "es", "fs", "gs", "fs_base", "gs_base"};
 
-  for (auto& kv : registers) {
-    ss << kv.first << ": 0x" << std::hex << kv.second << std::endl;
+  for (const auto& r : regs_print_order_x86_64) {
+    ss << r << ": 0x" << std::hex << registers[r] << std::endl;
   }
   return ss.str();
+}
+
+std::string Registers::str_i386() {
+  std::stringstream ss;
+  const std::string regs_print_order_i386[] ={ "eax", "ecx", "edx", "esi", "edi", "ebx", "ebp", "esp", 
+                              "eip", "eflags", "cs", "ss", "ds", "es", "fs", "gs"}; 
+
+  for (const auto& r : regs_print_order_i386) {
+    ss << r << ": 0x" << std::hex << registers[r] << std::endl;
+  }
+  return ss.str();
+}
+
+std::string Registers::str() {
+  switch (arch) {
+    case ARCH_X86_64:
+      return str_x86_64();
+    case ARCH_X86_32:
+      return str_i386();
+    default:
+      return "Architecture not recognized";
+  }
 }
 
 
