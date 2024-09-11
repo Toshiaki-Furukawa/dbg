@@ -286,12 +286,12 @@ void ELF::print_filename() {
 
 void ELF::print_sections() {
   for (auto& s: sections) {
-    s.second.print_section();
+    std::cout << s.second.str() << std::endl;
   }
 }
    
 void ELF::print_symtab() {
   for (auto& sym_entry: symtab) {
-    sym_entry.second.print_symbol();
+    std::cout << sym_entry.second.str() << std::endl;
   }
 }

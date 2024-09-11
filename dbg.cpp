@@ -563,8 +563,21 @@ void Debugger::print_vmmap() {
 
 
 void Debugger::list_breakpoints() {
+  switch (arch) {
+    case ARCH_X86_64:
     for(auto& bp_it : breakpoints) {
-    std::cout << "breakpoint at 0x" << std::hex << bp_it.second.get_addr() << std::endl;
+      std::cout << "Breakpoint at 0x" << fmt::addr_64(bp_it.second.get_addr()) << std::endl;
+    }
+    break;
+    case ARCH_X86_32:
+
+    for(auto& bp_it : breakpoints) {
+      std::cout << "Breakpoint at 0x" << fmt::addr_32(bp_it.second.get_addr()) << std::endl;
+    }
+    break;
+    default:
+    std::cout << "No valid architecture" << std::endl;
+    break;
   }
 }
 

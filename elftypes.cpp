@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include "elftypes.hpp"
+#include "fmt.hpp"
 
 Section::Section(uint64_t start_addr, uint32_t offset, size_t size, std::string name = "None") 
    : start_addr(start_addr), offset(offset), size(size), name(name) {}
@@ -29,10 +30,16 @@ uint64_t Section::get_size() {
   return size;
 }
 
-void Section::print_section() {
+std::string Section::str() {
+  /*
     std::cout << "0x" << std::hex << start_addr << "   " 
              << "0x" << std::hex << offset << "   " 
-             << "0x" << std::hex << size << "   "  <<  name << std::endl;
+             << "0x" << std::hex << size << "   "  <<  name << std::endl;*/
+  std::stringstream ss;
+  ss << fmt::addr_64(start_addr) << "  " 
+     << fmt::fleft(6) << std::hex << offset << " "
+     << fmt::fleft(6) << std::hex << size << name; 
+  return ss.str();
 }
 
   // checks if addr is contrained within the section
@@ -45,12 +52,12 @@ bool Section::contains(uint64_t addr) {
 
 Symbol::Symbol(uint64_t addr, uint32_t offset, uint32_t size, std::string name) : addr(addr), offset(offset), size(size), name(name) {}
 
- 
+/* 
 std::string Symbol::str() {
   std::stringstream ss;
   ss << "0x" << std::hex << addr << "  " << size <<  "  " << name; 
   return ss.str();
-}
+}*/
 
 void Symbol::rebase(uint64_t base_addr) {
   addr = base_addr + offset;
@@ -69,6 +76,9 @@ uint32_t Symbol::get_size() {
   return size;
 }
 
-void Symbol::print_symbol() {
-  std::cout << "0x" << std::hex << addr << "  " << std::dec << size << "  " << name << std::endl; 
+std::string Symbol::str() {
+  //std::cout << "0x" << std::hex << addr << "  " << std::dec << size << "  " << name << std::endl; 
+  std::stringstream ss;
+  ss << fmt::addr_64(addr) << "  " << fmt::fleft(7) << std::dec << size << name; 
+  return ss.str();
 }

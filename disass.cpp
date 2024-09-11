@@ -5,6 +5,7 @@
 #include <capstone/capstone.h>
 
 #include "disass.hpp"
+#include "fmt.hpp"
 
 Instruction::Instruction(cs_insn *insn) {
   load(insn); // TODO: improve on this code
@@ -50,8 +51,13 @@ std::string Instruction::get_op_str() {
 
 std::string Instruction::str() {
   std::stringstream ss;
+
+  if (addr < 0xffffffff) {
   //std::cout << "aaa" << this->prefix << "bbbb" << std::endl;
-  ss << prefix  << "0x" << std::hex << addr << "    " << mnemonic << "  " <<  op_str << suffix;
+    ss << prefix  << fmt::addr_32(addr) << "       "  << fmt::fleft(7) << mnemonic <<  op_str << fmt::fright(20) << suffix;
+  } else {
+    ss << prefix  << fmt::addr_64(addr) << "       "  << fmt::fleft(7) << mnemonic <<  op_str << fmt::fright(20) << suffix;
+  }
   return ss.str();
 }
 
