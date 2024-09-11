@@ -3,7 +3,7 @@ LIBS = -lcapstone -lreadline
 TESTLIB = gtest
 FLAGS = -Wall -std=c++17
 
-OBJECTS = build/main.o build/dbg.o build/dbgtypes.o build/elf.o build/elftypes.o build/disass.o
+OBJECTS = build/main.o build/dbg.o build/fmt.o build/dbgtypes.o build/elf.o build/elftypes.o build/disass.o
 ELF_OBJECTS = build/elf.o build/elftypes.o build/disass.o
 DISASS_OBJECTS = build/disass.o
 DBG_OBJECTS = build/dbg.o build/dbgtypes.o build/elf.o build/elftypes.o build/disass.o 

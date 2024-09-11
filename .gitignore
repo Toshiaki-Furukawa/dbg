@@ -8,3 +8,4 @@ test/test_disass_x86_64
 test/test_elf
 test/test_dbg
 test/*.o
+fmt
