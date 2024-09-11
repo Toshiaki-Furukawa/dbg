@@ -24,7 +24,7 @@ public:
 
   uint64_t get_size();
 
-  void print_section();
+  std::string str();
 
   // checks if addr is contrained within the section
   bool contains(uint64_t addr);
@@ -41,7 +41,7 @@ private:
 public:
   Symbol(uint64_t addr, uint32_t offset, uint32_t size, std::string name);
  
-  std::string str();
+  //std::string str();
   
   void rebase(uint64_t base_addr);
 
@@ -51,5 +51,5 @@ public:
 
   uint32_t get_size();
 
-  void print_symbol();
+  std::string str();
 };

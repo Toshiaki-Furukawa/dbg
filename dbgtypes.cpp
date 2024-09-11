@@ -4,9 +4,11 @@
 #include <fstream>
 #include <sys/user.h>
 #include <sys/ptrace.h>
+#include <iomanip>
 
 #include "elf.hpp"
 #include "dbgtypes.hpp"
+#include "fmt.hpp"
 
 
 Registers::Registers(arch_t arch) : arch(arch)  { }
@@ -327,7 +329,8 @@ std::string Registers::str_x86_64() {
                               "rip", "eflags", "cs", "ss", "ds", "es", "fs", "gs", "fs_base", "gs_base"};
 
   for (const auto& r : regs_print_order_x86_64) {
-    ss << r << ": 0x" << std::hex << registers[r] << std::endl;
+    //ss << r << ": 0x" << std::hex << registers[r] << std::endl;
+    ss << fmt::fleft(8) << r << fmt::addr_64(registers[r]) << std::endl;
   }
   return ss.str();
 }
@@ -338,7 +341,7 @@ std::string Registers::str_i386() {
                               "eip", "eflags", "cs", "ss", "ds", "es", "fs", "gs"}; 
 
   for (const auto& r : regs_print_order_i386) {
-    ss << r << ": 0x" << std::hex << registers[r] << std::endl;
+    ss << fmt::fleft(8) <<  r << fmt::addr_32(registers[r]) << std::endl;
   }
   return ss.str();
 }
@@ -450,8 +453,10 @@ bool MapEntry::contains(uint64_t addr) {
 
 std::string MapEntry::str() {
   std::stringstream ss;
-  ss << "0x" << std::hex << start_addr << "-0x" << std::hex << end_addr << "   " << permissions_str << "      " 
-     << std::hex << size << "  " << std::hex << "   " << offset <<"   "<< file;
+  //ss << "0x" << std::hex << start_addr << "-0x" << std::hex << end_addr << "   " << permissions_str << "      " 
+  //   << std::hex << size << "  " << std::hex << "   " << offset <<"   "<< file;
 
+  ss << fmt::addr_64(start_addr) << "-" << fmt::addr_64(end_addr) << " " << permissions_str 
+     << "  " << fmt::fleft(7) << std::hex << size  << " " << fmt::fleft(7) << std::hex << offset << file;
   return ss.str();
 }
