@@ -50,13 +50,13 @@ public:
 
   void poke(pid_t proc_pid);
 
-  uint64_t get_pc();
+  uint64_t get_pc() const;
   
-  uint64_t get_sp();
+  uint64_t get_sp() const;
 
-  uint64_t get_bp();
+  uint64_t get_bp() const;
   
-  uint64_t get_by_name(std::string name);
+  uint64_t get_by_name(std::string name) const;
 
   void set_by_name(std::string name, uint64_t value);
 
@@ -66,11 +66,11 @@ public:
 
   void set_bp(uint64_t value);
   
-  std::string str_x86_64();
+  std::string str_x86_64() const;
 
-  std::string str_i386();
+  std::string str_i386() const;
 
-  std::string str();
+  std::string str() const;
 
 };
 
@@ -108,17 +108,17 @@ private:
 public:
   MapEntry(std::string entry_str);
 
-  uint64_t get_start();
+  uint64_t get_start() const;
 
-  uint64_t get_end();
+  uint64_t get_end() const;
 
-  uint32_t get_size();
+  uint32_t get_size() const;
 
-  uint32_t get_offset();
+  uint32_t get_offset() const;
 
-  std::string get_file();
+  std::string get_file() const;
 
-  bool contains(uint64_t addr);
+  bool contains(uint64_t addr) const;
 
-  std::string str(); 
+  std::string str() const;  
 };

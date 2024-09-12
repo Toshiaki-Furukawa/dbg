@@ -4,53 +4,34 @@
 #include <iomanip>
 
 namespace fmt {
-  /*
-  typedef enum color_t {
-    red = 0,
-    green,
-    yellow,
-    blue,
-    magenta,
-    cyan,
-    white,
-    bright_black,
-    bright_red,
-    bright_green,
-    bright_yellow,
-    bright_blue,
-    bright_magenta,
-    bright_cyan,
-    bright_white,
-    reset, 
-  } color_t;*/
 
   class fleft {
   public:
-    explicit constexpr fleft(uint32_t n) : n(n) {} 
+    constexpr fleft(uint32_t n) : n(n) {} 
 
   private:
     uint32_t n;
   
-    friend std::ostream& operator<<(std::ostream &o, const fleft &i) {
-      return o << std::left << std::setfill(' ') << std::setw(i.n); 
-    }
+    friend std::ostream& operator<<(std::ostream &o, const fleft &i);
   };
 
   class fright {
   public:
-    explicit constexpr fright(uint32_t n): n(n) {}
+    constexpr fright(uint32_t n): n(n) {}
 
   private:
     uint32_t n;
   
-    friend std::ostream& operator<<(std::ostream &o, const fright &i) {
-     return o <<  std::right <<std::setfill(' ') << std::setw(i.n); 
-    }
+    friend std::ostream& operator<<(std::ostream &o, const fright &i);
   };
 
-  std::string addr_32(uint64_t addr);
+  std::ostream& operator<<(std::ostream &o, const fright &i);
+  
+  std::ostream& operator<<(std::ostream &o, const fleft &i);
 
-  std::string addr_64(uint64_t addr);
+  std::string addr_32(const uint64_t addr);
+
+  std::string addr_64(const uint64_t addr);
 
   std::ostream& red(std::ostream &o);
 

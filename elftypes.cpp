@@ -18,19 +18,19 @@ Section::Section(Elf32_Shdr *shdr, std::string name)
 void Section::rebase(uint64_t base_addr) {
   start_addr = offset + base_addr;
 }
-uint64_t Section::get_offset() {
+uint64_t Section::get_offset() const {
   return offset;
 }
   
-uint64_t Section::get_start() {
+uint64_t Section::get_start() const {
   return start_addr;
 }
 
-uint64_t Section::get_size() {
+uint64_t Section::get_size() const {
   return size;
 }
 
-std::string Section::str() {
+std::string Section::str() const {
   /*
     std::cout << "0x" << std::hex << start_addr << "   " 
              << "0x" << std::hex << offset << "   " 
@@ -43,7 +43,7 @@ std::string Section::str() {
 }
 
   // checks if addr is contrained within the section
-bool Section::contains(uint64_t addr) {
+bool Section::contains(uint64_t addr) const {
   if (addr >= start_addr && addr < start_addr + size) {
     return true;
   } 
@@ -64,19 +64,19 @@ void Symbol::rebase(uint64_t base_addr) {
 }
 
 
-uint64_t Symbol::get_addr() {
+uint64_t Symbol::get_addr() const {
   return addr;
 }
 
-uint32_t Symbol::get_offset() {
+uint32_t Symbol::get_offset() const {
   return offset;
 }
   
-uint32_t Symbol::get_size() {
+uint32_t Symbol::get_size() const {
   return size;
 }
 
-std::string Symbol::str() {
+std::string Symbol::str() const {
   //std::cout << "0x" << std::hex << addr << "  " << std::dec << size << "  " << name << std::endl; 
   std::stringstream ss;
   ss << fmt::addr_64(addr) << "  " << fmt::fleft(7) << std::dec << size << name; 

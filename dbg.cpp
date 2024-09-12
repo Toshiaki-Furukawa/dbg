@@ -67,21 +67,8 @@ void Debugger::disable_breakpoint(Breakpoint *bp) {
   bp->disable(); 
 }
 
-/*
-int Debugger::update_regs() {
-  user_regs_struct regs_struct;
-  if (ptrace(PTRACE_GETREGS, proc, NULL, &regs_struct) == -1) {
-    std::cout << "could not load registers";
-    return -1;
-  } 
-
-  regs->load(&regs_struct);
-
-  return 1;
-}*/
-
 uint64_t Debugger::get_symbol_addr(std::string sym) {
-  for (auto& entry : elf_table) {
+  for (const auto& entry : elf_table) {
     auto addr = entry.second->get_symbol_addr(sym);
 
     if (addr != 0) {
@@ -92,7 +79,7 @@ uint64_t Debugger::get_symbol_addr(std::string sym) {
 }
 
 uint32_t Debugger::get_symbol_size(std::string sym) {
-  for (auto& entry : elf_table) {
+  for (const auto& entry : elf_table) {
     auto addr = entry.second->get_symbol_addr(sym);
 
     if (addr != 0) {
@@ -227,7 +214,7 @@ Debugger::Debugger (const char *filename) : filename(filename) {
     read_vmmap();
 
     // read files that are in memory
-    for (auto& entry: vmmap)  {
+    for (const auto& entry: vmmap)  {
       auto filename = entry.get_file();
 
       if (is_elf(filename) && (elf_table.find(filename) == elf_table.end())) {
@@ -545,24 +532,24 @@ std::vector<uint32_t> Debugger::get_word(uint64_t addr, size_t n) {
 //////////////////////
 // print functions
 /////////////////////
-uint64_t Debugger::get_pc() {
+uint64_t Debugger::get_pc() const {
   return regs->get_pc();
 }
 
 
-void Debugger::print_regs() {
+void Debugger::print_regs()  const {
   std::cout << regs->str() << std::endl;
   
 }
 
-void Debugger::print_vmmap() {
-  for (auto& entry: vmmap) {
+void Debugger::print_vmmap() const {
+  for (const auto& entry: vmmap) {
     std::cout << entry.str() << std::endl;
   }
 }
 
 
-void Debugger::list_breakpoints() {
+void Debugger::list_breakpoints()  const{
   switch (arch) {
     case ARCH_X86_64:
     for(auto& bp_it : breakpoints) {
@@ -581,12 +568,12 @@ void Debugger::list_breakpoints() {
   }
 }
 
-void Debugger::print_symbols() {
+void Debugger::print_symbols() const {
   for (auto& entry : elf_table) {
     entry.second->print_symtab();
   }
 }
 
-void Debugger::print_sections() {
+void Debugger::print_sections() const {
   elf->print_sections();
 }

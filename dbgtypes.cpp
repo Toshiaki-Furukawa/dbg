@@ -249,19 +249,19 @@ void Registers::poke(pid_t pid) {
 }
 
 
-uint64_t Registers::get_pc() {
+uint64_t Registers::get_pc() const {
   return pc;
 }
 
-uint64_t Registers::get_sp() {
+uint64_t Registers::get_sp() const {
   return sp;
 }
 
-uint64_t Registers::get_bp() {
+uint64_t Registers::get_bp() const {
   return bp;
 }
 
-uint64_t Registers::get_by_name(std::string name) {
+uint64_t Registers::get_by_name(std::string name) const {
   auto it = registers.find(name);
   if (it == registers.end()) {
     return 0;
@@ -322,7 +322,7 @@ void Registers::set_by_name(std::string name, uint64_t value) {
 
 
 
-std::string Registers::str_x86_64() {
+std::string Registers::str_x86_64() const {
   std::stringstream ss;
   const std::string regs_print_order_x86_64[] = {"rax", "rcx", "rdx", "rsi", "rdi", "rbx", "rbp", "rsp", 
                               "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", 
@@ -330,24 +330,26 @@ std::string Registers::str_x86_64() {
 
   for (const auto& r : regs_print_order_x86_64) {
     //ss << r << ": 0x" << std::hex << registers[r] << std::endl;
-    ss << fmt::fleft(8) << r << fmt::addr_64(registers[r]) << std::endl;
+    const auto r_addr = registers.find(r)->second;
+    ss << fmt::fleft(8) << r << fmt::addr_64(r_addr) << std::endl;
   }
   return ss.str();
 }
 
-std::string Registers::str_i386() {
+std::string Registers::str_i386() const {
   std::stringstream ss;
   const std::string regs_print_order_i386[] ={ "eax", "ecx", "edx", "esi", "edi", "ebx", "ebp", "esp", 
                               "eip", "eflags", "cs", "ss", "ds", "es", "fs", "gs"}; 
 
   for (const auto& r : regs_print_order_i386) {
-    ss << fmt::fleft(8) <<  r << fmt::addr_32(registers[r]) << std::endl;
+    const auto r_addr = registers.find(r)->second;
+    ss << fmt::fleft(8) <<  r << fmt::addr_32(r_addr) << std::endl;
   }
   return ss.str();
 }
 
 
-std::string Registers::str() {
+std::string Registers::str() const {
   switch (arch) {
     case ARCH_X86_64:
       return str_x86_64();
@@ -424,34 +426,34 @@ MapEntry::MapEntry(std::string entry_str) {
   size = end_addr - start_addr;
 }
 
-uint64_t MapEntry::get_start() {
+uint64_t MapEntry::get_start() const {
   return start_addr;
 }
 
-uint64_t MapEntry::get_end() {
+uint64_t MapEntry::get_end() const {
   return end_addr;
 }
 
-uint32_t MapEntry::get_size() {
+uint32_t MapEntry::get_size() const {
   return size;
 }
 
-uint32_t MapEntry::get_offset() {
+uint32_t MapEntry::get_offset() const {
   return offset;
 }
 
-std::string MapEntry::get_file() {
+std::string MapEntry::get_file() const {
   return file;
 }
 
-bool MapEntry::contains(uint64_t addr) {
+bool MapEntry::contains(uint64_t addr) const {
   if (addr >= start_addr && addr < end_addr) {
     return true;
   }
     return false;
 }
 
-std::string MapEntry::str() {
+std::string MapEntry::str() const {
   std::stringstream ss;
   //ss << "0x" << std::hex << start_addr << "-0x" << std::hex << end_addr << "   " << permissions_str << "      " 
   //   << std::hex << size << "  " << std::hex << "   " << offset <<"   "<< file;
