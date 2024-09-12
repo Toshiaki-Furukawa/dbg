@@ -46,17 +46,17 @@ public:
  
   void rebase(uint64_t base_addr);
  
-  int get_machine();
+  int get_machine() const;
   
-  const char* get_filename();
+  const char* get_filename() const;
   
-  bool pie();
+  bool pie() const;
 
 
 
-  char get_byte_at_offset(uint32_t offset);
+  char get_byte_at_offset(uint32_t offset) const;
 
-  char get_byte_at_addr(uint64_t addr);
+  char get_byte_at_addr(uint64_t addr) const;
 
   uint8_t *get_n_bytes_at_addr(uint64_t addr, uint32_t n);
 
@@ -64,19 +64,19 @@ public:
 
 
 
-  uint32_t get_symbol_offset(std::string symbol);
+  uint32_t get_symbol_offset(std::string symbol) const;
 
-  uint64_t get_symbol_addr(std::string symbol);
+  uint64_t get_symbol_addr(std::string symbol) const;
 
-  uint32_t get_symbol_size(std::string symbol);
+  uint32_t get_symbol_size(std::string symbol) const;
 
 
 
   // DEBUG FUNCTIONS
-  void print_filename();
+  void print_filename() const;
 
-  void print_sections();
+  void print_sections() const;
    
-  void print_symtab();
+  void print_symtab() const;
 };
 

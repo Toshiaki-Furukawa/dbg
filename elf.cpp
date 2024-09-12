@@ -196,15 +196,15 @@ void ELF::rebase(uint64_t base_addr) {
   }
 }
   
-int ELF::get_machine() {
+int ELF::get_machine() const {
   return machine;
 }
   
-const char* ELF::get_filename() {
+const char* ELF::get_filename() const {
   return filename;
 }
 
-bool ELF::pie() {
+bool ELF::pie() const {
   return is_pie;
 }
 
@@ -213,14 +213,14 @@ bool ELF::pie() {
 // READ FROM MEM
 /////////////////////
 
-char ELF::get_byte_at_offset(uint32_t offset) {
+char ELF::get_byte_at_offset(uint32_t offset) const{
   if (offset < content_size) {
     return content[offset];
   } 
   return '\x00';
 }
 
-char ELF::get_byte_at_addr(uint64_t addr) {
+char ELF::get_byte_at_addr(uint64_t addr) const {
   return get_byte_at_offset(addr - base);
 }
 
@@ -247,7 +247,7 @@ uint8_t *ELF::get_n_bytes_at_offset(uint64_t offset, uint32_t n) {
 // SYMTAB functions
 //////////////////////
 
-uint32_t ELF::get_symbol_offset(std::string symbol) {
+uint32_t ELF::get_symbol_offset(std::string symbol) const {
   auto it = symtab.find(symbol);
   
   if (it == symtab.end()) {
@@ -257,7 +257,7 @@ uint32_t ELF::get_symbol_offset(std::string symbol) {
 }
 
 
-uint64_t ELF::get_symbol_addr(std::string symbol) {
+uint64_t ELF::get_symbol_addr(std::string symbol) const {
   auto it = symtab.find(symbol);
   
   if (it == symtab.end()) {
@@ -267,7 +267,7 @@ uint64_t ELF::get_symbol_addr(std::string symbol) {
   return it->second.get_addr();
 }
 
-uint32_t ELF::get_symbol_size(std::string symbol) {
+uint32_t ELF::get_symbol_size(std::string symbol) const {
   auto it = symtab.find(symbol);
 
   if (it == symtab.end()) {
@@ -280,17 +280,17 @@ uint32_t ELF::get_symbol_size(std::string symbol) {
 ////////////////////
 // DEBUG FUNCTIONS
 ///////////////////
-void ELF::print_filename() {
+void ELF::print_filename() const {
   std::cout << filename << std::endl;
 }
 
-void ELF::print_sections() {
+void ELF::print_sections() const {
   for (auto& s: sections) {
     std::cout << s.second.str() << std::endl;
   }
 }
    
-void ELF::print_symtab() {
+void ELF::print_symtab() const {
   for (auto& sym_entry: symtab) {
     std::cout << sym_entry.second.str() << std::endl;
   }

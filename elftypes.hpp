@@ -18,16 +18,16 @@ public:
 
   void rebase(uint64_t base_addr);
 
-  uint64_t get_offset();
+  uint64_t get_offset() const;
   
-  uint64_t get_start();
+  uint64_t get_start() const;
 
-  uint64_t get_size();
+  uint64_t get_size() const;
 
-  std::string str();
+  std::string str() const;
 
   // checks if addr is contrained within the section
-  bool contains(uint64_t addr);
+  bool contains(uint64_t addr) const;
 };
 
 
@@ -45,11 +45,11 @@ public:
   
   void rebase(uint64_t base_addr);
 
-  uint64_t get_addr();
+  uint64_t get_addr() const;
  
-  uint32_t get_offset();
+  uint32_t get_offset() const;
 
-  uint32_t get_size();
+  uint32_t get_size() const;
 
-  std::string str();
+  std::string str() const;
 };

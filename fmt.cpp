@@ -16,14 +16,14 @@ std::ostream& fmt::operator<<(std::ostream &o, const fmt::fright &i) {
   return o <<  std::right <<std::setfill(' ') << std::setw(i.n); 
 }
 
-std::string fmt::addr_32(uint64_t addr) {
+std::string fmt::addr_32(const uint64_t addr) {
   std::stringstream ss;
 
   ss  << "0x" << std::setfill('0') << std::setw(4*2) << std::hex << addr;
   return ss.str();
 }
 
-std::string fmt::addr_64(uint64_t addr) {
+std::string fmt::addr_64(const uint64_t addr) {
   std::stringstream ss;
 
   ss  <<  "0x" << std::setfill('0') << std::setw(8*2) << std::hex << addr;

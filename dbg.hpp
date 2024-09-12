@@ -84,15 +84,15 @@ public:
 
   std::vector<uint32_t> get_word(uint64_t addr, size_t n);
 
-  uint64_t get_pc();
+  uint64_t get_pc() const;
 
-  void print_regs();
+  void print_regs() const;
 
-  void print_vmmap();
+  void print_vmmap() const;
 
-  void list_breakpoints();
+  void list_breakpoints() const;
 
-  void print_symbols();
+  void print_symbols() const;
 
-  void print_sections();
+  void print_sections() const;
 };

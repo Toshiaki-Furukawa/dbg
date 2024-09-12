@@ -29,9 +29,9 @@ namespace fmt {
   
   std::ostream& operator<<(std::ostream &o, const fleft &i);
 
-  std::string addr_32(uint64_t addr);
+  std::string addr_32(const uint64_t addr);
 
-  std::string addr_64(uint64_t addr);
+  std::string addr_64(const uint64_t addr);
 
   std::ostream& red(std::ostream &o);
 
