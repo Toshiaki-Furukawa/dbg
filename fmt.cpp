@@ -7,25 +7,14 @@
 #include "dbgtypes.hpp"
 #include "fmt.hpp"
 
-/*
-char const* ansi_color_prefix[] = {
-  "\033[31m",
-  "\033[32m",
-  "\033[33m",
-  "\033[34m",
-  "\033[35m",
-  "\033[36m",
-  "\033[37m",
-  "\033[90m",
-  "\033[91m",
-  "\033[92m",
-  "\033[93m",
-  "\033[94m",
-  "\033[95m",
-  "\033[96m",
-  "\033[97m",
-  "\033[0m"
-};*/
+
+std::ostream& fmt::operator<<(std::ostream &o, const fmt::fleft &i) {
+  return o << std::left << std::setfill(' ') << std::setw(i.n); 
+}
+
+std::ostream& fmt::operator<<(std::ostream &o, const fmt::fright &i) {
+  return o <<  std::right <<std::setfill(' ') << std::setw(i.n); 
+}
 
 std::string fmt::addr_32(uint64_t addr) {
   std::stringstream ss;
@@ -65,7 +54,6 @@ std::ostream& fmt::white(std::ostream &o) {
 std::ostream& fmt::endc(std::ostream &o) {
   return o << "\033[0m";
 }
-
 
 /*
 int main() {
