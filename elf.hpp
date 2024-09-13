@@ -58,9 +58,9 @@ public:
 
   char get_byte_at_addr(uint64_t addr) const;
 
-  uint8_t *get_n_bytes_at_addr(uint64_t addr, uint32_t n);
+  uint8_t *get_n_bytes_at_addr(uint64_t addr, uint32_t n) const;
 
-  uint8_t *get_n_bytes_at_offset(uint64_t addr, uint32_t n);
+  uint8_t *get_n_bytes_at_offset(uint64_t addr, uint32_t n) const;
 
 
 

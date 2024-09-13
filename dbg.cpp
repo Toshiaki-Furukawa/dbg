@@ -6,6 +6,7 @@
 #include <sys/user.h>
 #include <vector>
 #include <signal.h>
+#include <filesystem>
 
 #include <sstream>
 #include <fstream>
@@ -143,7 +144,7 @@ uint8_t *Debugger::get_bytes_from_file(std::string filename, uint64_t addr, uint
     return NULL;
   }
 
-  ELF *elf_ptr = file_entry->second;
+  const ELF *elf_ptr = file_entry->second;
   return elf_ptr->get_n_bytes_at_addr(addr, n);
 }
 
@@ -174,24 +175,12 @@ uint8_t *Debugger::get_bytes_from_memory(uint64_t addr, uint32_t n) {
 
 
 Debugger::Debugger (const char *filename) : filename(filename) {
-  elf = new ELF(filename);
+  elf = NULL;
+  regs = NULL;
 
-  if (elf->pie()) {
-    std::cout << "File is PIE" << std::endl;
-  } else {
-    std::cout << "No PIE" << std::endl;
-  }
-
-  switch (elf->get_machine()) {
-    case EM_X86_64:
-      arch = ARCH_X86_64;
-      break;
-    case EM_386:
-      arch = ARCH_X86_32;
-      break;
-    default:
-      arch = ARCH_UNDEF;
-      break;
+  if (!std::filesystem::exists(filename)) {
+    std::cout << "file does not exist" << std::endl;
+    return;
   }
 
   proc = fork();
@@ -200,6 +189,7 @@ Debugger::Debugger (const char *filename) : filename(filename) {
     exit(-1);
   }
 
+
   if (proc == 0) {
     personality(ADDR_NO_RANDOMIZE);
 
@@ -207,10 +197,13 @@ Debugger::Debugger (const char *filename) : filename(filename) {
 
     execl(filename, filename, NULL, NULL);
   } else {
+    std::cout << "hi "  << proc << std::endl;
     waitpid(proc, &status, 0);
     ptrace(PTRACE_SETOPTIONS, proc, NULL, PTRACE_O_EXITKILL);
+    std::cout << "tracing process pid: " << proc << std::endl;
 
     // get memory mapping of child process
+    std::cout << "reading vmmap" << std::endl;
     read_vmmap();
 
     // read files that are in memory
@@ -221,8 +214,36 @@ Debugger::Debugger (const char *filename) : filename(filename) {
         ELF *vmmap_elf_file = new ELF(filename.c_str());
         vmmap_elf_file->rebase(entry.get_start());
 
+        if (elf == NULL) {
+          elf = vmmap_elf_file;
+        }
+
         elf_table.insert(std::pair(filename, vmmap_elf_file));
       }
+    }
+    if (elf == NULL) {
+      return;
+    }
+
+    switch (elf->get_machine()) {
+    case EM_X86_64:
+      std::cout << "Arch: x86-64" << std::endl;
+      arch = ARCH_X86_64;
+      break;
+    case EM_386:
+      std::cout << "Arch: i386" << std::endl;
+      arch = ARCH_X86_32;
+      break;
+    default:
+      std::cout << "could not read arch" << std::endl;
+      arch = ARCH_UNDEF;
+      break;
+    }
+
+    if (elf->pie()) {
+      std::cout << "ELF is PIE" << std::endl;
+    } else {
+      std::cout << "ELF is not PIE" << std::endl;
     }
 
     regs = new Registers(arch);
@@ -231,9 +252,12 @@ Debugger::Debugger (const char *filename) : filename(filename) {
 }
 
 Debugger::~Debugger() {
-  delete elf;
-  delete regs;
-  for (auto it : elf_table) {
+  //delete elf;
+  if (regs != NULL) {
+    delete regs;
+  }
+
+  for (auto& it : elf_table) {
     delete it.second;
   }
 
@@ -354,6 +378,7 @@ void Debugger::set_breakpoint(unsigned long addr) {
   std::string filename = get_file_from_addr(addr);
 
   uint8_t *bytes;
+
 
   if (filename.empty()) {
     bytes = get_bytes_from_memory(addr, 1);

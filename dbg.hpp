@@ -21,7 +21,7 @@
 class Debugger {
 private:
   const char *filename;
-  ELF *elf;
+  const ELF* elf;
 
   //user_regs_struct regs;
   Registers *regs;
@@ -31,7 +31,7 @@ private:
 
   std::unordered_map<uint64_t, Breakpoint> breakpoints;
   std::vector<MapEntry> vmmap;
-  std::unordered_map<std::string, ELF*> elf_table;
+  std::unordered_map<std::string, const ELF*> elf_table;
 
   arch_t arch;
 
