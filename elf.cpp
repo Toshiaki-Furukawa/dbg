@@ -38,7 +38,6 @@ ELF::ELF(const char* filename): filename(filename){
   
   content = new char[content_size];
  
-  std::cout << content_size << std::endl; 
   if (!elf_file.read(content, content_size)) {
     std::cout << "something went wrong reading file" << std::endl;
     return;
@@ -57,15 +56,14 @@ ELF::ELF(const char* filename): filename(filename){
 
   // get the machien architecture
   machine = static_cast<uint16_t>(content[16+2]);
-
   // read sections based on architecture
   switch (machine) {
     case EM_X86_64:
-      std::cout << "64 bit ELF" << std::endl; 
+      //std::cout << "64 bit ELF" << std::endl; 
       read_sections_x86_64();
       break;
     case EM_386:
-      std::cout << "32 bit ELF" << std::endl; 
+      //std::cout << "32 bit ELF" << std::endl; 
       read_sections_i386();
       break;
     default:
@@ -224,16 +222,17 @@ char ELF::get_byte_at_addr(uint64_t addr) const {
   return get_byte_at_offset(addr - base);
 }
 
-uint8_t *ELF::get_n_bytes_at_addr(uint64_t addr, uint32_t n) {
+uint8_t *ELF::get_n_bytes_at_addr(uint64_t addr, uint32_t n) const {
   uint8_t *bytes = new uint8_t[n];
   
   for (uint64_t i = addr; i < addr + n; i++) {
     bytes[i-addr] = static_cast<uint8_t>(get_byte_at_addr(i));
   }
+
   return bytes;
 }
 
-uint8_t *ELF::get_n_bytes_at_offset(uint64_t offset, uint32_t n) {
+uint8_t *ELF::get_n_bytes_at_offset(uint64_t offset, uint32_t n) const {
   uint8_t *bytes = new uint8_t[n];
   
   for (uint64_t i = offset; i < offset + n; i++) {

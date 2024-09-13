@@ -6,6 +6,7 @@
 #include <sys/user.h>
 #include <vector>
 #include <signal.h>
+#include  <filesystem>
 
 #include <sstream>
 #include <fstream>
@@ -53,6 +54,10 @@ int main(int argc, char *argv[]) {
   }
 
   const char *filename = argv[1];
+  if (!std::filesystem::exists(filename)) {
+    std::cout << "file does not exist" << std::endl;
+    return 0;
+  }
 
   // run
   Debugger dbg = Debugger(filename);
