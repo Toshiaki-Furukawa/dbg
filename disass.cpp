@@ -8,10 +8,7 @@
 #include "fmt.hpp"
 
 Instruction::Instruction(cs_insn *insn) {
-  load(insn); // TODO: improve on this code
-}
-  
-void Instruction::load(cs_insn *insn) {
+  //load(insn); // TODO: improve on this code
   size = insn->size;
   addr = insn->address;
   
@@ -23,6 +20,19 @@ void Instruction::load(cs_insn *insn) {
   op_str.assign(insn->op_str);   
 }
 
+/* 
+void Instruction::load(cs_insn *insn) {
+  size = insn->size;
+  addr = insn->address;
+  
+  for (uint16_t i = 0; i < size; i++) {
+    bytes.emplace_back(reinterpret_cast<uint8_t>(insn->bytes[i]));
+  }
+   
+  mnemonic.assign(insn->mnemonic);
+  op_str.assign(insn->op_str);   
+}*/
+
 void Instruction::set_prefix(std::string const s) {
   this->prefix.assign(s);
 }
@@ -31,25 +41,25 @@ void Instruction::set_suffix(std::string suffix) {
   this->suffix.assign(suffix);
 }
 
-uint64_t Instruction::get_addr() {
+uint64_t Instruction::get_addr() const {
   return addr;
 }
 
 
-uint16_t Instruction::get_size() {
+uint16_t Instruction::get_size() const {
   return size;
 }
 
   
-std::string Instruction::get_mnemonic() {
+std::string Instruction::get_mnemonic() const {
   return mnemonic;
 }
 
-std::string Instruction::get_op_str() {
+std::string Instruction::get_op_str() const {
   return op_str;
 }
 
-std::string Instruction::str() {
+std::string Instruction::str() const {
   std::stringstream ss;
 
   if (addr < 0xffffffff) {

@@ -15,22 +15,22 @@ public:
 
   Instruction(cs_insn *insn);
   
-  void load(cs_insn *insn);
+  //void load(cs_insn *insn) ;
 
   void set_prefix(std::string prefix);
 
   void set_suffix(std::string suffix);
 
-  uint64_t get_addr();
+  uint64_t get_addr() const;
 
-  uint16_t get_size();
+  uint16_t get_size() const;
 
   
-  std::string get_mnemonic();
+  std::string get_mnemonic() const;
 
-  std::string get_op_str();
+  std::string get_op_str() const;
 
-  std::string str();
+  std::string str() const;
 };
 
 

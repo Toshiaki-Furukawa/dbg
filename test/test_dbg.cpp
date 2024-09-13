@@ -17,20 +17,20 @@ TEST(DebuggerTest, TestCont) {
   dbg_64.set_breakpoint(0x40117a);
 
   dbg_32.cont();
-  ASSERT_EQ(dbg_32.get_rip(), 0x8049198);
+  ASSERT_EQ(dbg_32.get_pc(), 0x8049198);
   dbg_32.cont();
-  ASSERT_EQ(dbg_32.get_rip(), 0x80491ad);
+  ASSERT_EQ(dbg_32.get_pc(), 0x80491ad);
   dbg_32.cont();
-  ASSERT_EQ(dbg_32.get_rip(), 0x80491c8);
+  ASSERT_EQ(dbg_32.get_pc(), 0x80491c8);
 
 
 
   dbg_64.cont();
-  ASSERT_EQ(dbg_64.get_rip(), 0x40113e);
+  ASSERT_EQ(dbg_64.get_pc(), 0x40113e);
   dbg_64.cont();
-  ASSERT_EQ(dbg_64.get_rip(), 0x401161);
+  ASSERT_EQ(dbg_64.get_pc(), 0x401161);
   dbg_64.cont();
-  ASSERT_EQ(dbg_64.get_rip(), 0x40117b);
+  ASSERT_EQ(dbg_64.get_pc(), 0x40117b);
 }
 
 TEST(DebuggerTest, SingleStep) {
@@ -44,22 +44,22 @@ TEST(DebuggerTest, SingleStep) {
   dbg_64.set_breakpoint(0x40113a);
   
   dbg_32.cont();
-  ASSERT_EQ(dbg_32.get_rip(), 0x80491a5);
+  ASSERT_EQ(dbg_32.get_pc(), 0x80491a5);
   dbg_32.single_step();
-  ASSERT_EQ(dbg_32.get_rip(), 0x80491a8);
+  ASSERT_EQ(dbg_32.get_pc(), 0x80491a8);
   dbg_32.single_step();
-  ASSERT_EQ(dbg_32.get_rip(), 0x80491ab);
+  ASSERT_EQ(dbg_32.get_pc(), 0x80491ab);
   dbg_32.single_step();
-  ASSERT_EQ(dbg_32.get_rip(), 0x80491ad);
+  ASSERT_EQ(dbg_32.get_pc(), 0x80491ad);
 
   dbg_64.cont();
-  ASSERT_EQ(dbg_64.get_rip(), 0x40113e);
+  ASSERT_EQ(dbg_64.get_pc(), 0x40113e);
   dbg_64.single_step();
-  ASSERT_EQ(dbg_64.get_rip(), 0x401145);
+  ASSERT_EQ(dbg_64.get_pc(), 0x401145);
   dbg_64.single_step();
-  ASSERT_EQ(dbg_64.get_rip(), 0x40114c);
+  ASSERT_EQ(dbg_64.get_pc(), 0x40114c);
   dbg_64.single_step();
-  ASSERT_EQ(dbg_64.get_rip(), 0x401151);
+  ASSERT_EQ(dbg_64.get_pc(), 0x401151);
   dbg_64.single_step();
    
 }
