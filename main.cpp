@@ -48,11 +48,6 @@ command_t get_cmd() {
 
 int main(int argc, char *argv[]) {
   // test
-  std::cout << "Hello World!" << std:: endl;
-
-  // setup
-  std::cout << "scr1ptL0ng test" << std::endl;
-
   if (argc < 2) {
     std::cout << "Usage: ./dbg filename" << std::endl;
     return 0;

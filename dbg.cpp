@@ -563,6 +563,10 @@ uint64_t Debugger::get_pc() const {
 
 
 void Debugger::print_regs()  const {
+  if (WIFEXITED(status)) {
+    return;
+  }
+
   std::cout << regs->str() << std::endl;
   
 }
