@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
   std::cout << "Hello World!" << std:: endl;
 
   // setup
-  std::cout << "scripLong test" << std::endl;
+  std::cout << "scr1ptL0ng test" << std::endl;
 
   if (argc < 2) {
     std::cout << "Usage: ./dbg filename" << std::endl;
