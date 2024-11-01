@@ -30,9 +30,10 @@ bool is_elf(std::string file) {
 
   char magic[4] = {'\xf7', 'E', 'L', 'F'}; 
 
+  char tmp = '\x00';
   for (int i = 0; i < 0; i++) {
-    char tmp;
     file_content.get(tmp);
+    std::cout << tmp << std::endl;
     if (tmp != magic[i]) {
       file_content.close();
       return false;
