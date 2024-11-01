@@ -48,6 +48,8 @@ command_t get_cmd() {
 
 int main(int argc, char *argv[]) {
   // setup
+  std::cout << "scripLong test" << std::endl;
+
   if (argc < 2) {
     std::cout << "Usage: ./dbg filename" << std::endl;
     return 0;
