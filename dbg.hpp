@@ -35,26 +35,26 @@ private:
 
   arch_t arch;
 
-  void enable_breakpoint(Breakpoint *bp);
+  void enable_breakpoint(Breakpoint*);
 
-  void disable_breakpoint(Breakpoint *bp); 
+  void disable_breakpoint(Breakpoint*); 
 
   int update_regs();
 
-  uint64_t get_symbol_addr(std::string sym);
+  uint64_t get_symbol_addr(std::string);
 
-  uint32_t get_symbol_size(std::string sym);
+  uint32_t get_symbol_size(std::string);
 
   //  this function is useful to get a estimate of mappings, prior to reading vmmap
   //uint64_t read_vmmap_base();
 
   void read_vmmap();
 
-  std::string get_file_from_addr(uint64_t addr);
+  std::string get_file_from_addr(uint64_t);
 
-  uint8_t *get_bytes_from_file(std::string filename, uint64_t addr, uint32_t n);
+  uint8_t *get_bytes_from_file(std::string, uint64_t, uint32_t);
 
-  uint8_t *get_bytes_from_memory(uint64_t addr, uint32_t n);
+  uint8_t *get_bytes_from_memory(uint64_t, uint32_t);
 
 
 public:
@@ -68,21 +68,21 @@ public:
 
   void single_step();
 
-  void set_breakpoint(unsigned long addr);
+  void set_breakpoint(unsigned long);
 
-  void delete_breakpoint(uint64_t addr);
-
-
-  std::vector<Instruction> disassemble(uint64_t addr, size_t n);
-
-  std::vector<Instruction> disassemble(std::string symbol); 
+  void delete_breakpoint(uint64_t);
 
 
-  uint8_t *get_bytes(uint64_t adddr, size_t n);
+  std::vector<Instruction> disassemble(uint64_t, size_t);
 
-  std::vector<uint64_t> get_long(uint64_t addr, size_t n); 
+  std::vector<Instruction> disassemble(std::string); 
 
-  std::vector<uint32_t> get_word(uint64_t addr, size_t n);
+
+  uint8_t *get_bytes(uint64_t, size_t);
+
+  std::vector<uint64_t> get_long(uint64_t, size_t); 
+
+  std::vector<uint32_t> get_word(uint64_t, size_t);
 
   uint64_t get_pc() const;
 
