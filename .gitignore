@@ -9,3 +9,8 @@ test/test_elf
 test/test_dbg
 test/*.o
 fmt
+test/*
+ingore/*
+.*
+ignore
+dbg
