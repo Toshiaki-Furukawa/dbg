@@ -50,7 +50,6 @@ std::ostream& fmt::cyan(std::ostream &o) {
 std::ostream& fmt::white(std::ostream &o) {
   return o << "\033[37m";
 }
-
 std::ostream& fmt::endc(std::ostream &o) {
   return o << "\033[0m";
 }
