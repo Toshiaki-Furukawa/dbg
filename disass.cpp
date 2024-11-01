@@ -116,15 +116,3 @@ std::vector<Instruction> disassemble_i386(uint64_t addr, const uint8_t *code, si
   }
   return ret;
 }
- 
-/*
-int main() {
-  const char *code = "\x55\x89\xe5\x51\x83\xec\x14\xc7\x45\xf4\x00\x00\x00\x00";
-  size_t code_size = 14;
-
-  auto instructions = disassemble_i386(0x1000, reinterpret_cast<const uint8_t*>(&(code[0])), code_size);
-
-  for (auto instr : instructions) {
-    std::cout << instr.str() << std::endl; 
-  }
-}*/
