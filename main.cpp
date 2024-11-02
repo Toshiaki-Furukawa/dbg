@@ -53,7 +53,20 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  const char *filename = argv[1];
+  bool console_mode = false;
+  const char *filename = nullptr;
+
+  for (int i = 1; i < argc; i++) {
+    if (std::string(argv[i]) == "-c") {
+      std::cout << "starting in console mode" << std::endl;
+    } else {
+      if (filename == nullptr) {
+        filename = argv[i];
+      }  
+    }
+  }
+
+  //const char *filename = argv[1];
   if (!std::filesystem::exists(filename)) {
     std::cout << "file does not exist" << std::endl;
     return 0;

@@ -28,13 +28,15 @@ bool is_elf(std::string file) {
     return false;
   }
 
-  char magic[4] = {'\xf7', 'E', 'L', 'F'}; 
-
-  char tmp = '\x00';
-  for (int i = 0; i < 0; i++) {
+  
+  char magic[4] = {0x7f, 'E', 'L', 'F'}; 
+  file_content.seekg(0, std::ios::beg);
+  
+  for (const auto& magic_byte : magic) {
+    char tmp;
     file_content.get(tmp);
-    std::cout << tmp << std::endl;
-    if (tmp != magic[i]) {
+    if (tmp != magic_byte) {
+      std::cout << "hi" << std::endl;
       file_content.close();
       return false;
     }
@@ -336,8 +338,8 @@ int Debugger::cont() {
       regs->set_pc(pc - 1);
       regs->poke(proc);
 
-      single_step()
-; 
+      single_step(); 
+
       enable_breakpoint(&(bp_it->second));
       regs->peek(proc);
     }
