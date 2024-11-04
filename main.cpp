@@ -92,10 +92,10 @@ int main(int argc, char *argv[]) {
       }
     } else if (cmd.cmd == "r") {
       if (cmd.args.size() == 2) {
-        uint64_t addr = std::strtol(cmd.args[1].c_str(), NULL, 16);
-        std::cout << "trying to restore at " << fmt::addr_64(addr) << std::endl;
+        uint32_t n = std::stoi(cmd.args[1].c_str());
+        std::cout << "trying to restore nr. " << n << std::endl;
         
-        dbg.goto_addr(addr); 
+        dbg.restore_state(n); 
       } else {
         dbg.reset();
       }
@@ -124,12 +124,7 @@ int main(int argc, char *argv[]) {
         } else if (cmd.args[1] == "sections" || cmd.args[1] == "sec") {
           dbg.print_sections();
         } else if (cmd.args[1] == "history" || cmd.args[1] == "hist") {
-          auto reg_history = dbg.get_register_history();
-          int idx = 0;
-          for (const auto& reg_entry : reg_history) {
-            std::cout << "checkpoint entry nr. " << idx << " at: " << fmt::addr_64(reg_entry.get_pc()) << std::endl;
-            idx++; 
-          }
+          dbg.print_history();
         }
       }
     } else if (cmd.cmd == "xl") {

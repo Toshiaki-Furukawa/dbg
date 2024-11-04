@@ -20,6 +20,91 @@
 #include "dbg.hpp"
 #include "disass.hpp"
 #include "fmt.hpp"
+/*
+struct memory_chunk {
+  uint64_t start;
+  uint32_t size;
+  uint8_t* content;
+
+} chunk_t;
+
+struct program_state {
+  uint64_t addr;
+  
+  chunk_t heap;
+  chunk_t stack; 
+
+  Registers regs;
+} typedef state_t;
+
+class ExecHistory {
+private:
+  //std::vector<Registers> register_history;
+  std::Vector<state_t> state_log;
+
+public:
+  ExecHistory() {
+    mem_log = {};
+    register_history = {};
+  }
+
+  void log(state_t state) {
+    state_log.emplace_back(state); 
+  }
+
+  bool is_logged(uint64_t addr) {
+    for (const auto& state : state_log) {
+      if (state.addr == addr) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  chunk_t get_stack(uint32_t n) {
+    if (n > state_log.size()) {
+      return nullptr;
+    }
+
+    auto stack_chunk = state_log[n].stack;
+    if (stack_chunk.start == 0x0) {
+      return nullptr;
+    }
+    return stack_chunk;
+  }
+
+  chunk_t get_heap(uint32_t n) {
+    if (n > state_log.size()) {
+      return nullptr;
+    }
+
+    auto heap_chunk = state_log[n].heap;
+    if (heap_chunk.start == 0x0) {
+      return nullptr;
+    }
+    return heap_chunk;
+  }
+
+  Registers& get_registers(uint32_t n) {
+    if (n > state_log.size()) {
+      return nullptr;
+    }
+
+    return state_log[n].regs;
+  }
+
+  std::string str() {
+    std::stringstream ss;
+    int idx = 0;
+    for (const auto& state : state_log) {
+      ss << "Checkpoint nr. " << idx << " at PC: " << std::addr_64(state.addr) <<  std::endl;
+      ss << "   heap: " << std::addr_64(state.heap.start) << std::endl;
+      ss << "   stack: " << std::addr_64(state.heap.start) << std::endl << std::endl;
+    } 
+    return ss.str();   
+  }
+};*/
 
 bool is_elf(std::string file) {
   std::ifstream file_content(file, std::ios::binary | std::ios::ate);
@@ -366,10 +451,6 @@ int Debugger::cont() {
       enable_breakpoint(&(bp_it->second));
       regs->peek(proc);
     }
-
-    /*register_history.emplace_back(*regs);
-    stack_vmmap = vmmap.last();
-    stack_history.emplace_back(get_bytes_from_memory(stack_vmmap,  */
  
     std::cout << "stopped at: 0x" << regs->get_pc() << std::endl;
     std::cout << "bp at: 0x" << regs->get_bp() << std::endl;
@@ -393,68 +474,64 @@ void Debugger::single_step() {
   waitpid(proc, &status, 0);
   //update_regs();
   regs->peek(proc);
-
-  /*std::cout << "inserting " << fmt::addr_64(regs->get_pc()) << std::endl; 
-
-  //register_history.insert({regs->get_pc(), *regs});
-  register_history.emplace_back(regs);
-
-  for (const auto& vmmap_entry : vmmap ) {
-    if(vmmap_entry.is_writable()) {
-      std::cout << "writable entry: " << std::endl <<  vmmap_entry.str() << std::endl;
-      uint8_t* mem_data = get_bytes_from_memory(vmmap_entry.get_start(), vmmap_entry.get_size());
-      mem_history[vmmap_entry.get_start()].emplace_back(mem_data); 
-    }
-  }*/
-
-  //stack_history.emplace_back(get_bytes_from_memory(stack_vmmap.get_start(), stack_vmmap.get_size()));
 }
 
 void Debugger::log_state() {
-  std::unordered_map<uint64_t, uint8_t*> vmmap_log;
+  state_t state = {regs->get_pc(), {0x0, 0x0, 0x0}, {0x0, 0x0, 0x0}, *regs};
+  /*state.addr = regs.get_pc();
+  state.regs = *regs;
+  state.heap = {0x0, 0x0, 0x0};
+  state.stack = {0x0, 0x0, 0x0};*/
 
   for (const auto& vmmap_entry : vmmap ) {
-    if (vmmap_entry.get_file() == "[heap]" || vmmap_entry.get_file() == "[stack]") {
-      uint8_t* mem_data = get_bytes_from_memory(vmmap_entry.get_start(), vmmap_entry.get_size());
-      vmmap_log[vmmap_entry.get_start()] = mem_data; 
+    if (vmmap_entry.get_file() == "[heap]") {
+      std::cout << "found heap" << std::endl;
+      state.heap.start = vmmap_entry.get_start();
+      state.heap.size = vmmap_entry.get_size();
+
+      state.heap.content = get_bytes_from_memory(state.heap.start, state.heap.size);
+    } else if (vmmap_entry.get_file() == "[stack]") {
+      std::cout << "found stack" << std::endl;
+      state.stack.start = vmmap_entry.get_start();
+      state.stack.size = vmmap_entry.get_size();
+
+      state.stack.content = get_bytes_from_memory(state.stack.start, state.stack.size);
     }
   }
 
-  mem_log.emplace_back(vmmap_log);
-  register_log.emplace_back(*regs);
-
-  std::cout << "logged state" << std::endl; 
+  program_history.log(state);
 }
 
-void Debugger::goto_addr(uint64_t addr) {
-  bool present = false;
-  int idx = 0;
+void Debugger::restore_state(uint32_t n) {
+  auto state_regs = program_history.get_registers(n);
 
-  for (auto& logged_reg : register_log) {
-    if (logged_reg.get_pc() == addr) {
-      present = true;
-      logged_reg.poke(proc);
-      break;
-    }
-    idx++;
-  }
-
-  if (!present) {
-    std::cout << "Address was not recorded" << std::endl;
+  if (state_regs == nullptr) {
+    std::cout << "could not find state" << std::endl;
     return;
   }
 
-  regs->peek(proc);
+  state_regs->poke(proc);
 
-  // TOOD: detect compatibility
-  auto vmmap_log = mem_log[idx];
+  auto heap = program_history.get_heap(n);
+  if (heap == nullptr) {
+    std::cout << "[Warning] No heap info stored" << std::endl;
+  }
+
+  auto stack = program_history.get_stack(n);
+  if (stack == nullptr) {
+    std::cout << "[Warning] No stack info stored" << std::endl;
+  }
+ 
   for (const auto& vmmap_entry : vmmap) {
-    auto logged_mapping = vmmap_log.find(vmmap_entry.get_start());
-    if (logged_mapping != vmmap_log.end()) {
-      write_bytes_to_memory(vmmap_entry.get_start(), logged_mapping->second, vmmap_entry.get_size());
+    if (vmmap_entry.get_file() == "[heap]" && heap != nullptr) {
+      write_bytes_to_memory(heap->start, heap->content, heap->size);
+    } else if (vmmap_entry.get_file() == "[stack]" && heap != nullptr) {
+      write_bytes_to_memory(stack->start, stack->content, stack->size);
     }
   }
 
+  
+  regs->peek(proc);
   std::cout << "successfully restored state" << std::endl;
   return;
 }
@@ -651,8 +728,8 @@ std::vector<uint32_t> Debugger::get_word(uint64_t addr, size_t n) {
 //////////////////////
 // print functions
 /////////////////////
-std::vector<Registers>& Debugger::get_register_history() {
-  return register_log;
+void Debugger::print_history() const {
+  std::cout << program_history.str() << std::endl;
 }
 
 uint64_t Debugger::get_pc() const {
