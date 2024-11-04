@@ -169,6 +169,7 @@ uint8_t *Debugger::get_bytes_from_memory(uint64_t addr, uint32_t n) {
   remote_mem[0].iov_len = n; 
 
   if (process_vm_readv(proc, local_mem, 1, remote_mem, 1, 0) != n) {
+    std::cout << "could not read from memory" << std::endl;
     delete[] ret;
     return NULL;
   }
@@ -176,10 +177,32 @@ uint8_t *Debugger::get_bytes_from_memory(uint64_t addr, uint32_t n) {
   return ret;
 }
 
+void Debugger::write_bytes_to_memory(uint64_t addr, uint8_t* bytes, uint32_t n) {
+  if (WIFEXITED(status)) {
+    std::cout << "Program is no longer beeing run" << std::endl; 
+    return;
+  }
+
+
+  struct iovec local_mem[1];
+  struct iovec remote_mem[1];
+
+  local_mem[0].iov_base = bytes;
+  local_mem[0].iov_len = n;
+
+  remote_mem[0].iov_base = (void *)(addr);
+  remote_mem[0].iov_len = n; 
+
+  if (process_vm_writev(proc, local_mem, 1, remote_mem, 1, 0) != n) {
+    std::cout << "could not write to memory" << std::endl;
+  }
+}
+
 
 Debugger::Debugger (const char *filename) : filename(filename) {
   elf = NULL;
   regs = NULL;
+  // register_history = {};
 
   if (!std::filesystem::exists(filename)) {
     std::cout << "file does not exist" << std::endl;
@@ -343,7 +366,11 @@ int Debugger::cont() {
       enable_breakpoint(&(bp_it->second));
       regs->peek(proc);
     }
-    
+
+    /*register_history.emplace_back(*regs);
+    stack_vmmap = vmmap.last();
+    stack_history.emplace_back(get_bytes_from_memory(stack_vmmap,  */
+ 
     std::cout << "stopped at: 0x" << regs->get_pc() << std::endl;
     std::cout << "bp at: 0x" << regs->get_bp() << std::endl;
     std::cout << "sp at: 0x" << regs->get_sp() << std::endl;
@@ -366,6 +393,70 @@ void Debugger::single_step() {
   waitpid(proc, &status, 0);
   //update_regs();
   regs->peek(proc);
+
+  /*std::cout << "inserting " << fmt::addr_64(regs->get_pc()) << std::endl; 
+
+  //register_history.insert({regs->get_pc(), *regs});
+  register_history.emplace_back(regs);
+
+  for (const auto& vmmap_entry : vmmap ) {
+    if(vmmap_entry.is_writable()) {
+      std::cout << "writable entry: " << std::endl <<  vmmap_entry.str() << std::endl;
+      uint8_t* mem_data = get_bytes_from_memory(vmmap_entry.get_start(), vmmap_entry.get_size());
+      mem_history[vmmap_entry.get_start()].emplace_back(mem_data); 
+    }
+  }*/
+
+  //stack_history.emplace_back(get_bytes_from_memory(stack_vmmap.get_start(), stack_vmmap.get_size()));
+}
+
+void Debugger::log_state() {
+  std::unordered_map<uint64_t, uint8_t*> vmmap_log;
+
+  for (const auto& vmmap_entry : vmmap ) {
+    if (vmmap_entry.get_file() == "[heap]" || vmmap_entry.get_file() == "[stack]") {
+      uint8_t* mem_data = get_bytes_from_memory(vmmap_entry.get_start(), vmmap_entry.get_size());
+      vmmap_log[vmmap_entry.get_start()] = mem_data; 
+    }
+  }
+
+  mem_log.emplace_back(vmmap_log);
+  register_log.emplace_back(*regs);
+
+  std::cout << "logged state" << std::endl; 
+}
+
+void Debugger::goto_addr(uint64_t addr) {
+  bool present = false;
+  int idx = 0;
+
+  for (auto& logged_reg : register_log) {
+    if (logged_reg.get_pc() == addr) {
+      present = true;
+      logged_reg.poke(proc);
+      break;
+    }
+    idx++;
+  }
+
+  if (!present) {
+    std::cout << "Address was not recorded" << std::endl;
+    return;
+  }
+
+  regs->peek(proc);
+
+  // TOOD: detect compatibility
+  auto vmmap_log = mem_log[idx];
+  for (const auto& vmmap_entry : vmmap) {
+    auto logged_mapping = vmmap_log.find(vmmap_entry.get_start());
+    if (logged_mapping != vmmap_log.end()) {
+      write_bytes_to_memory(vmmap_entry.get_start(), logged_mapping->second, vmmap_entry.get_size());
+    }
+  }
+
+  std::cout << "successfully restored state" << std::endl;
+  return;
 }
 
 //////////////////////
@@ -560,6 +651,10 @@ std::vector<uint32_t> Debugger::get_word(uint64_t addr, size_t n) {
 //////////////////////
 // print functions
 /////////////////////
+std::vector<Registers>& Debugger::get_register_history() {
+  return register_log;
+}
+
 uint64_t Debugger::get_pc() const {
   return regs->get_pc();
 }

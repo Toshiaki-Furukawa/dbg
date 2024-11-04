@@ -18,6 +18,7 @@ b 0xADDR         set breakpoint at 0xADDR
 c                continue
 s                single step
 r                reset
+r 0xADDR         resets to stored checkpoint
 
 i sym            print symbol information
 i sec            print section information
@@ -31,6 +32,7 @@ db 0xADDR n      disassemble n bytes form 0xADDR
 
 xw 0xADDR n    inspect n words from address
 xl 0xADDR n    inspect n long from address
+log            creates a log of current debugger state
 ```
 
 ## TODO:
