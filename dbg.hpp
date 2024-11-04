@@ -33,6 +33,10 @@ private:
   std::vector<MapEntry> vmmap;
   std::unordered_map<std::string, const ELF*> elf_table;
 
+  //History program_history;
+  std::vector<Registers> register_log;
+  std::vector<std::unordered_map<uint64_t, uint8_t*>> mem_log;
+
   arch_t arch;
 
   void enable_breakpoint(Breakpoint*);
@@ -56,6 +60,8 @@ private:
 
   uint8_t *get_bytes_from_memory(uint64_t, uint32_t);
 
+  void write_bytes_to_memory(uint64_t, uint8_t*, uint32_t);
+
 
 public:
   Debugger (const char *filename);
@@ -67,6 +73,10 @@ public:
   int cont();
 
   void single_step();
+
+  void log_state();
+
+  void goto_addr(uint64_t);
 
   void set_breakpoint(unsigned long);
 
@@ -83,6 +93,9 @@ public:
   std::vector<uint64_t> get_long(uint64_t, size_t); 
 
   std::vector<uint32_t> get_word(uint64_t, size_t);
+
+
+  std::vector<Registers>& get_register_history();
 
   uint64_t get_pc() const;
 

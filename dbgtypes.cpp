@@ -442,6 +442,10 @@ uint32_t MapEntry::get_offset() const {
   return offset;
 }
 
+bool MapEntry::is_writable() const {
+  return permissions[1];
+}
+
 std::string MapEntry::get_file() const {
   return file;
 }

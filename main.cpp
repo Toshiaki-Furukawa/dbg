@@ -18,6 +18,7 @@
 #include "dbgtypes.hpp"
 #include "dbg.hpp"
 #include "disass.hpp"
+#include "fmt.hpp"
 
 #include <readline/readline.h>
 #include <readline/history.h>
@@ -90,7 +91,16 @@ int main(int argc, char *argv[]) {
         exit(-1);
       }
     } else if (cmd.cmd == "r") {
-      dbg.reset();
+      if (cmd.args.size() == 2) {
+        uint64_t addr = std::strtol(cmd.args[1].c_str(), NULL, 16);
+        std::cout << "trying to restore at " << fmt::addr_64(addr) << std::endl;
+        
+        dbg.goto_addr(addr); 
+      } else {
+        dbg.reset();
+      }
+    } else if (cmd.cmd == "log") {
+      dbg.log_state(); 
     } else if (cmd.cmd == "b") {
       if (cmd.args.size() >= 2) {
         const char *hex_addr = cmd.args[1].c_str();
@@ -113,6 +123,13 @@ int main(int argc, char *argv[]) {
           dbg.print_symbols();
         } else if (cmd.args[1] == "sections" || cmd.args[1] == "sec") {
           dbg.print_sections();
+        } else if (cmd.args[1] == "history" || cmd.args[1] == "hist") {
+          auto reg_history = dbg.get_register_history();
+          int idx = 0;
+          for (const auto& reg_entry : reg_history) {
+            std::cout << "checkpoint entry nr. " << idx << " at: " << fmt::addr_64(reg_entry.get_pc()) << std::endl;
+            idx++; 
+          }
         }
       }
     } else if (cmd.cmd == "xl") {

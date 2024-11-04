@@ -116,6 +116,8 @@ public:
 
   uint32_t get_offset() const;
 
+  bool is_writable() const;
+
   std::string get_file() const;
 
   bool contains(uint64_t addr) const;
