@@ -29,7 +29,8 @@ command_t get_cmd() {
 
 
   char *inpt = NULL;
-  inpt = readline("wg> ");
+  std::cout << fmt::green << "wg> " << fmt::endc;
+  inpt = readline(" ");
   add_history(inpt);
 
   std::stringstream ss {inpt};

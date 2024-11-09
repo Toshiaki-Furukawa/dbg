@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <elf.h>
 #include <unordered_map>
+
+#include "dbgtypes.hpp"
 #include "elftypes.hpp"
 #include "disass.hpp"
 
@@ -14,7 +16,8 @@ private:
   const char* filename;
   char *content; 
   size_t content_size;
-  int machine;            // stores machine or -1 if the file could not be read
+  //int machine;            // stores machine or -1 if the file could not be read
+  arch_t architecture;
   uint64_t base;
 
   //std::vector<Section> sections;
@@ -46,7 +49,7 @@ public:
  
   void rebase(uint64_t base_addr);
  
-  int get_machine() const;
+  arch_t get_machine() const;
   
   const char* get_filename() const;
   

@@ -33,6 +33,7 @@ void Instruction::load(cs_insn *insn) {
   op_str.assign(insn->op_str);   
 }*/
 
+
 void Instruction::set_prefix(std::string const s) {
   this->prefix.assign(s);
 }
@@ -59,14 +60,14 @@ std::string Instruction::get_op_str() const {
   return op_str;
 }
 
+
 std::string Instruction::str() const {
   std::stringstream ss;
-
+  
   if (addr < 0xffffffff) {
-  //std::cout << "aaa" << this->prefix << "bbbb" << std::endl;
-    ss << prefix  << fmt::addr_32(addr) << "       "  << fmt::fleft(7) << mnemonic <<  op_str << fmt::fright(20) << suffix;
+    ss << prefix  << fmt::yellow << fmt::addr_32(addr) << fmt::endc << "       "  << fmt::green << fmt::fleft(7)  << mnemonic  << fmt::endc <<  fmt::op_intel(op_str) << fmt::fright(20) << suffix;
   } else {
-    ss << prefix  << fmt::addr_64(addr) << "       "  << fmt::fleft(7) << mnemonic <<  op_str << fmt::fright(20) << suffix;
+    ss << prefix  << fmt::yellow << fmt::addr_64(addr) << fmt::endc  << "       " << fmt::green  << fmt::fleft(7) << mnemonic << fmt::endc <<  fmt::op_intel(op_str) << fmt::fright(20) << suffix;
   }
   return ss.str();
 }

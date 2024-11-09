@@ -14,9 +14,9 @@
 #include <cstdint>
 #include <map>
 #include <unordered_map>
-#include "elftypes.hpp"
-#include "elf.hpp"
 #include "dbgtypes.hpp"
+#include "elf.hpp"
+#include "elftypes.hpp"
 #include "fmt.hpp"
 
 

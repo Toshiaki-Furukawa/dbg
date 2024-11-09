@@ -331,7 +331,7 @@ std::string Registers::str_x86_64() const {
   for (const auto& r : regs_print_order_x86_64) {
     //ss << r << ": 0x" << std::hex << registers[r] << std::endl;
     const auto r_addr = registers.find(r)->second;
-    ss << fmt::fleft(8) << r << fmt::addr_64(r_addr) << std::endl;
+    ss << fmt::blue << fmt::fleft(8) << r << fmt::endc << fmt::yellow  << fmt::addr_64(r_addr) << fmt::endc << std::endl;
   }
   return ss.str();
 }
@@ -343,7 +343,8 @@ std::string Registers::str_i386() const {
 
   for (const auto& r : regs_print_order_i386) {
     const auto r_addr = registers.find(r)->second;
-    ss << fmt::fleft(8) <<  r << fmt::addr_32(r_addr) << std::endl;
+    ss << fmt::cyan << fmt::fleft(8) << r << fmt::endc << fmt::yellow  << fmt::addr_32(r_addr) << fmt::endc << std::endl;
+    //ss << fmt::fleft(8) <<  r << fmt::addr_32(r_addr) << std::endl;
   }
   return ss.str();
 }
@@ -457,12 +458,29 @@ bool MapEntry::contains(uint64_t addr) const {
     return false;
 }
 
-std::string MapEntry::str() const {
+std::string MapEntry::str(arch_t architecture) const {
   std::stringstream ss;
   //ss << "0x" << std::hex << start_addr << "-0x" << std::hex << end_addr << "   " << permissions_str << "      " 
   //   << std::hex << size << "  " << std::hex << "   " << offset <<"   "<< file;
+  if (architecture == arch_t::ARCH_X86_64) {
+    ss << fmt::yellow << fmt::addr_64(start_addr) << "-" <<  fmt::addr_64(end_addr) 
+        << fmt::endc << " " << permissions_str 
+        << "  " << fmt::fleft(7) << std::hex << size  
+        << " " << fmt::red << fmt::fleft(7) << std::hex << offset 
+        << fmt::blue << file << fmt::endc;
 
-  ss << fmt::addr_64(start_addr) << "-" << fmt::addr_64(end_addr) << " " << permissions_str 
-     << "  " << fmt::fleft(7) << std::hex << size  << " " << fmt::fleft(7) << std::hex << offset << file;
+  } else if (architecture == arch_t::ARCH_X86_32) {
+    ss << fmt::yellow << fmt::addr_64(start_addr) << "-" <<  fmt::addr_64(end_addr) 
+        << fmt::endc << " " << permissions_str 
+        << "  " << fmt::fleft(7) << std::hex << size  
+        << " " << fmt::red << fmt::fleft(7) << std::hex << offset 
+        << fmt::blue << file << fmt::endc;
+  } else {
+    ss << fmt::yellow << fmt::addr_64(start_addr) << "-" <<  fmt::addr_64(end_addr) 
+        << fmt::endc << " " << permissions_str 
+        << "  " << fmt::fleft(7) << std::hex << size  
+        << " " << fmt::red << fmt::fleft(7) << std::hex << offset 
+        << fmt::blue << file << fmt::endc;
+  }
   return ss.str();
 }
