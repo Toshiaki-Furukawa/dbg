@@ -7,12 +7,14 @@
 
 #include "disass.hpp"
 
+#include "dbgtypes.hpp"
+
 #include "elftypes.hpp"
 #include "elf.hpp"
 
 ELF::ELF(const char* filename): filename(filename){
   content = NULL;
-  machine = -1;
+  //machine = -1;
   is_pie = false;
   base = 0;
     
@@ -55,18 +57,21 @@ ELF::ELF(const char* filename): filename(filename){
   }
 
   // get the machien architecture
-  machine = static_cast<uint16_t>(content[16+2]);
+  auto machine = static_cast<uint16_t>(content[16+2]);
   // read sections based on architecture
   switch (machine) {
     case EM_X86_64:
       //std::cout << "64 bit ELF" << std::endl; 
+      architecture =  arch_t::ARCH_X86_64;
       read_sections_x86_64();
       break;
     case EM_386:
       //std::cout << "32 bit ELF" << std::endl; 
+      architecture =  arch_t::ARCH_X86_32;
       read_sections_i386();
       break;
     default:
+      architecture =  arch_t::ARCH_UNDEF;
       std::cout << "Format not supported";
       return;
   }
@@ -194,8 +199,9 @@ void ELF::rebase(uint64_t base_addr) {
   }
 }
   
-int ELF::get_machine() const {
-  return machine;
+arch_t ELF::get_machine() const {
+  return architecture;
+  //return machine;
 }
   
 const char* ELF::get_filename() const {
@@ -285,12 +291,12 @@ void ELF::print_filename() const {
 
 void ELF::print_sections() const {
   for (auto& s: sections) {
-    std::cout << s.second.str() << std::endl;
+    std::cout << s.second.str(architecture) << std::endl;
   }
 }
    
 void ELF::print_symtab() const {
   for (auto& sym_entry: symtab) {
-    std::cout << sym_entry.second.str() << std::endl;
+    std::cout << sym_entry.second.str(architecture) << std::endl;
   }
 }

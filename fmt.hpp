@@ -48,4 +48,6 @@ namespace fmt {
   std::ostream& white(std::ostream &o);
 
   std::ostream& endc(std::ostream &o);
+ 
+  std::string op_intel(std::string);
 }

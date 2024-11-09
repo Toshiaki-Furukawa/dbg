@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <iostream>
 #include <sstream>
+#include "dbgtypes.hpp"
 #include "elftypes.hpp"
 #include "fmt.hpp"
 
@@ -30,15 +31,36 @@ uint64_t Section::get_size() const {
   return size;
 }
 
-std::string Section::str() const {
+std::string Section::str(arch_t architecture) const {
   /*
     std::cout << "0x" << std::hex << start_addr << "   " 
              << "0x" << std::hex << offset << "   " 
              << "0x" << std::hex << size << "   "  <<  name << std::endl;*/
   std::stringstream ss;
-  ss << fmt::addr_64(start_addr) << "  " 
-     << fmt::fleft(6) << std::hex << offset << " "
-     << fmt::fleft(6) << std::hex << size << name; 
+  if (architecture == arch_t::ARCH_X86_64) {
+    ss << fmt::yellow << fmt::addr_64(start_addr) << fmt::endc << "  " 
+       << fmt::fleft(6) << std::hex << offset << " "
+       << fmt::fleft(6) << std::hex << fmt::red << fmt::fleft(6) << size  << fmt::blue << name << fmt::endc; 
+
+  } else if (architecture == arch_t::ARCH_X86_32) {
+    ss << fmt::yellow << fmt::addr_32(start_addr) << fmt::endc << "  " 
+       << fmt::fleft(6) << std::hex << offset << " "
+       << fmt::fleft(6) << std::hex << fmt::red << fmt::fleft(6) << size << fmt::blue << name << fmt::endc; 
+
+  } else {
+    if (start_addr > 0xffffffff) {
+      ss << fmt::yellow << fmt::addr_64(start_addr) << fmt::endc << "  " 
+         << fmt::fleft(6) << std::hex << offset << " "
+         << fmt::fleft(6) << std::hex << fmt::red << fmt::fleft(6) << size  << fmt::blue << name << fmt::endc; 
+
+    } else {
+      ss << fmt::yellow << fmt::addr_32(start_addr) << fmt::endc << "  " 
+         << fmt::fleft(6) << std::hex << offset << " "
+         << fmt::fleft(6) << std::hex << fmt::red << fmt::fleft(6) << size << fmt::blue << name << fmt::endc; 
+
+    }
+  }
+
   return ss.str();
 }
 
@@ -76,9 +98,19 @@ uint32_t Symbol::get_size() const {
   return size;
 }
 
-std::string Symbol::str() const {
+std::string Symbol::str(arch_t architecture) const {
   //std::cout << "0x" << std::hex << addr << "  " << std::dec << size << "  " << name << std::endl; 
   std::stringstream ss;
-  ss << fmt::addr_64(addr) << "  " << fmt::fleft(7) << std::dec << size << name; 
+  if (architecture == arch_t::ARCH_X86_64) {
+    ss << fmt::yellow << fmt::addr_64(addr) << fmt::endc << "  " << fmt::fleft(7) << std::dec << size << fmt::cyan << name << fmt::endc; 
+  } else if (architecture == arch_t::ARCH_X86_32) {
+    ss << fmt::yellow << fmt::addr_32(addr) << fmt::endc << "  " << fmt::fleft(7) << std::dec << size << fmt::cyan << name << fmt::endc; 
+  } else {
+    if (addr > 0xffffffff) {
+      ss << fmt::yellow << fmt::addr_64(addr) << fmt::endc << "  " << fmt::fleft(7) << std::dec << size << fmt::cyan << name << fmt::endc; 
+    } else {
+      ss << fmt::yellow << fmt::addr_32(addr) << fmt::endc << "  " << fmt::fleft(7) << std::dec << size << fmt::cyan << name << fmt::endc; 
+    }
+  }
   return ss.str();
 }

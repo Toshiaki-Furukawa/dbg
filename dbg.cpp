@@ -14,8 +14,9 @@
 
 #include <cstdint>
 #include <map>
-#include "elftypes.hpp"
+
 #include "elf.hpp"
+#include "elftypes.hpp"
 #include "dbgtypes.hpp"
 #include "dbg.hpp"
 #include "disass.hpp"
@@ -336,7 +337,7 @@ Debugger::Debugger (const char *filename) : filename(filename) {
       return;
     }
 
-    switch (elf->get_machine()) {
+    /*switch (elf->get_machine()) {
     case EM_X86_64:
       std::cout << "Arch: x86-64" << std::endl;
       arch = ARCH_X86_64;
@@ -349,7 +350,8 @@ Debugger::Debugger (const char *filename) : filename(filename) {
       std::cout << "could not read arch" << std::endl;
       arch = ARCH_UNDEF;
       break;
-    }
+    }*/
+    arch = elf->get_machine();
 
     if (elf->pie()) {
       std::cout << "ELF is PIE" << std::endl;
@@ -358,6 +360,7 @@ Debugger::Debugger (const char *filename) : filename(filename) {
     }
 
     regs = new Registers(arch);
+    regs->peek(proc);
     return;
   }
 }
@@ -748,7 +751,7 @@ void Debugger::print_regs()  const {
 
 void Debugger::print_vmmap() const {
   for (const auto& entry: vmmap) {
-    std::cout << entry.str() << std::endl;
+    std::cout << entry.str(arch) << std::endl;
   }
 }
 

@@ -54,6 +54,38 @@ std::ostream& fmt::endc(std::ostream &o) {
   return o << "\033[0m";
 }
 
+/* instructions can be of form 
+1. op    0xaddr
+2. op    dst, src
+3. op    dword ptr [dst], src            can also appear as src, dword ptr dst
+3. op    dword ptr [dst + offset], src
+
+*/
+
+std::string fmt::op_intel(std::string op_str) {
+  size_t idx = 0;
+  std::stringstream ss;
+  if (op_str.size() < 3) {
+    return op_str; 
+  }
+
+  while (idx < op_str.size()) {
+    if ((op_str[idx] == 'e' || op_str[idx] == 'r') && op_str[idx + 1] != 'd' && op_str[idx+1] != ' ') {
+      ss << fmt::cyan << op_str[idx];
+    } else if (op_str[idx] == '0' && op_str[idx+1] == 'x') {
+      ss << fmt::yellow << op_str[idx];
+    } else if (op_str[idx] == ',' || op_str[idx] == ' ' || op_str[idx] == '[' || op_str[idx] == ']') {
+      ss << fmt::endc << op_str[idx];
+    } else {
+      ss << op_str[idx];
+    }
+    idx++;
+  }
+
+  return ss.str();
+}
+
+
 /*
 int main() {
   std::cout << "hi" << fmt::blue << " this is a test " << fmt::endc << "some" << std::endl;

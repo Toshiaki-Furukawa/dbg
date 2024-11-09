@@ -5,7 +5,9 @@
 #include <sstream>
 #include <iostream>
 #include <sys/user.h>
-#include "elf.hpp"
+#include <unordered_map>
+
+//#include "elf.hpp"
 
 enum disas_mode {
   DISAS_MODE_WORD,
@@ -122,5 +124,5 @@ public:
 
   bool contains(uint64_t addr) const;
 
-  std::string str() const;  
+  std::string str(arch_t) const;  
 };
