@@ -77,6 +77,10 @@ std::vector<Instruction> disassemble(cs_arch arch, cs_mode mode, uint64_t addr, 
   cs_insn *insn;
   std::vector<Instruction> instructions;
 
+  if (code_size == 0) {
+    return instructions;
+  }
+
   if (cs_open(arch, mode, &handle) != CS_ERR_OK)
     return instructions; 
 

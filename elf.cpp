@@ -12,7 +12,8 @@
 #include "elftypes.hpp"
 #include "elf.hpp"
 
-ELF::ELF(const char* filename): filename(filename){
+//ELF::ELF(const char* filename): filename(filename){
+ELF::ELF(std::string filename): filename(filename){
   content = NULL;
   //machine = -1;
   is_pie = false;
@@ -204,7 +205,8 @@ arch_t ELF::get_machine() const {
   //return machine;
 }
   
-const char* ELF::get_filename() const {
+//const char* ELF::get_filename() const {
+std::string ELF::get_filename() const {
   return filename;
 }
 
