@@ -131,9 +131,6 @@ private:
 
   int update_regs();
 
-  uint64_t get_symbol_addr(std::string);
-
-  uint32_t get_symbol_size(std::string);
 
   //  this function is useful to get a estimate of mappings, prior to reading vmmap
   //uint64_t read_vmmap_base();
@@ -173,6 +170,12 @@ public:
 
   std::vector<Instruction> disassemble(std::string); 
 
+
+  uint64_t get_reg(std::string);
+  
+  uint64_t get_symbol_addr(std::string);
+
+  uint32_t get_symbol_size(std::string);
 
   uint8_t *get_bytes(uint64_t, size_t);
 

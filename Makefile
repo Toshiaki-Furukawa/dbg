@@ -1,7 +1,7 @@
 CC = g++
 LIBS = -lcapstone -lreadline
 TESTLIB = gtest
-FLAGS = -Wall -std=c++17
+FLAGS = -Wall -std=c++20
 
 OBJECTS = build/main.o build/dbg.o build/fmt.o build/dbgtypes.o build/elf.o build/elftypes.o build/disass.o
 ELF_OBJECTS = build/elf.o build/elftypes.o build/disass.o build/fmt.o build/dbgtypes.o

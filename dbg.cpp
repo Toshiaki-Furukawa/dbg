@@ -122,7 +122,6 @@ bool is_elf(std::string file) {
     char tmp;
     file_content.get(tmp);
     if (tmp != magic_byte) {
-      std::cout << "hi" << std::endl;
       file_content.close();
       return false;
     }
@@ -158,25 +157,52 @@ void Debugger::disable_breakpoint(Breakpoint *bp) {
 }
 
 uint64_t Debugger::get_symbol_addr(std::string sym) {
+  uint64_t ret = 0;
+
   for (const auto& entry : elf_table) {
     auto addr = entry.second->get_symbol_addr(sym);
-
     if (addr != 0) {
-      return addr;
+      if (ret == 0) {
+        ret = addr;
+      }
+
+      if (entry.first == elf->get_filename()) {
+        ret = addr;
+      }
     }
+
+    /*if (addr != 0) {
+      return addr;
+    }*/
   }
-  return 0;
+  return ret;
 }
 
 uint32_t Debugger::get_symbol_size(std::string sym) {
+  uint64_t ret = 0;
+
   for (const auto& entry : elf_table) {
     auto addr = entry.second->get_symbol_addr(sym);
+    if (ret == 0) {
+      ret = addr;
+    }
+
+    if (entry.first == elf->get_filename()) {
+      ret = addr;
+    }
 
     if (addr != 0) {
-      return entry.second->get_symbol_size(sym);
+      if (ret == 0) {
+        ret = entry.second->get_symbol_size(sym);
+      }
+
+      if (entry.first == elf->get_filename()) {
+        ret = entry.second->get_symbol_size(sym);
+      }
+      //return entry.second->get_symbol_size(sym);
     }
   }
-  return 0;
+  return ret;
 }
 
 void Debugger::read_vmmap() {
@@ -308,8 +334,9 @@ Debugger::Debugger (const char *filename) : filename(filename) {
     ptrace(PTRACE_TRACEME, proc, NULL, NULL);
 
     execl(filename, filename, NULL, NULL);
+    //const char *env_list[] = { "LD_PRELOAD=/lib/libc.so.6", NULL }; 
+    //execle(filename, filename, NULL, env_list);
   } else {
-    std::cout << "hi "  << proc << std::endl;
     waitpid(proc, &status, 0);
     ptrace(PTRACE_SETOPTIONS, proc, NULL, PTRACE_O_EXITKILL);
     std::cout << "tracing process pid: " << proc << std::endl;
@@ -481,10 +508,6 @@ void Debugger::single_step() {
 
 void Debugger::log_state() {
   state_t state = {regs->get_pc(), {0x0, 0x0, 0x0}, {0x0, 0x0, 0x0}, *regs};
-  /*state.addr = regs.get_pc();
-  state.regs = *regs;
-  state.heap = {0x0, 0x0, 0x0};
-  state.stack = {0x0, 0x0, 0x0};*/
 
   for (const auto& vmmap_entry : vmmap ) {
     if (vmmap_entry.get_file() == "[heap]") {
@@ -591,17 +614,23 @@ void Debugger::delete_breakpoint(uint64_t addr) {
 ////////////////////
 
 std::vector<Instruction> Debugger::disassemble(uint64_t addr, size_t n) { //disas_mode mode) {
+  if (n == 0) {
+    return {};
+  }
+ 
   std::vector<Instruction> instructions;
 
   std::string filename = get_file_from_addr(addr);
   uint8_t *bytes;
 
+ 
   if (filename.empty()) {
     std::cout << "WARNING: disassembling section that is not a file" << std::endl;
     bytes = get_bytes_from_memory(addr, n);
   } else {
     bytes =  get_bytes_from_file(filename, addr, n); 
   }
+
 
   if (bytes == NULL) {
     return instructions;
@@ -640,23 +669,32 @@ std::vector<Instruction> Debugger::disassemble(uint64_t addr, size_t n) { //disa
 
 std::vector<Instruction> Debugger::disassemble(std::string symbol) {
   std::vector<Instruction> instructions;
-
+  
   uint64_t addr = get_symbol_addr(symbol);
+  uint32_t size = get_symbol_size(symbol);
+
   if (addr == 0) {
     std::cout << "Symbol not found" << std::endl;
     return instructions;
   }
 
-  uint32_t size = get_symbol_size(symbol);
+  //uint32_t size = get_symbol_size(symbol);
 
   instructions = disassemble(addr, size);
-  std::cout << instructions[0].str() << std::endl;
+  //if (instructions.size() > 0) {
+  //  return instructions;
+  
+  //std::cout << instructions[0].str() << std::endl;
   return instructions;
 }
 
 /////////////////////
 // READM FROM MEMORY
 ////////////////////
+
+uint64_t Debugger::get_reg(std::string reg) {
+  return regs->get_by_name(reg);
+}
 
 uint8_t *Debugger::get_bytes(uint64_t addr, size_t n) {
   std::string filename = get_file_from_addr(addr);
@@ -760,13 +798,13 @@ void Debugger::list_breakpoints()  const{
   switch (arch) {
     case ARCH_X86_64:
     for(auto& bp_it : breakpoints) {
-      std::cout << "Breakpoint at 0x" << fmt::addr_64(bp_it.second.get_addr()) << std::endl;
+      std::cout << "Breakpoint set at " << fmt::yellow << fmt::addr_64(bp_it.second.get_addr()) << fmt::endc << std::endl;
     }
     break;
     case ARCH_X86_32:
 
     for(auto& bp_it : breakpoints) {
-      std::cout << "Breakpoint at 0x" << fmt::addr_32(bp_it.second.get_addr()) << std::endl;
+      std::cout << "Breakpoint set at " << fmt::yellow << fmt::addr_32(bp_it.second.get_addr()) << fmt::endc << std::endl;
     }
     break;
     default:

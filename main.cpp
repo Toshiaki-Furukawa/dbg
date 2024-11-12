@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
       }
     } else if (cmd.cmd == "r") {
       if (cmd.args.size() == 2) {
-        uint32_t n = std::stoi(cmd.args[1].c_str());
+        uint32_t n = std::strtol(cmd.args[1].c_str(), NULL, 10);
         std::cout << "trying to restore nr. " << n << std::endl;
         
         dbg.restore_state(n); 
@@ -103,13 +103,22 @@ int main(int argc, char *argv[]) {
     } else if (cmd.cmd == "log") {
       dbg.log_state(); 
     } else if (cmd.cmd == "b") {
-      if (cmd.args.size() >= 2) {
-        const char *hex_addr = cmd.args[1].c_str();
-        uint64_t bp_addr = strtol(hex_addr, NULL, 16);
+      if (cmd.args.size() == 2) {
+        uint64_t addr = 0;
 
-        dbg.set_breakpoint(bp_addr);
+        if (cmd.args[1].starts_with("0x")) {
+          addr = std::strtol(cmd.args[1].c_str(), NULL, 16);
+        } else {
+          addr = dbg.get_symbol_addr(cmd.args[1]);
+        }
+        if (addr == 0) {
+          std::cout << "Invalid position!" << std::endl;
+          continue;
+        }
 
-        std::cout << "bp set at: " << std::hex << bp_addr << std::endl;
+        dbg.set_breakpoint(addr);
+
+        std::cout << "Breakpoint set at: " << fmt::yellow << "0x" << std::hex << addr << fmt::endc << std::endl;
       }
     } else if  (cmd.cmd == "s") {
       dbg.single_step(); 
@@ -129,33 +138,97 @@ int main(int argc, char *argv[]) {
         }
       }
     } else if (cmd.cmd == "xl") {
-      if (cmd.args.size() == 3) {
-        uint64_t addr = std::strtol(cmd.args[1].c_str(), NULL, 16);
-        size_t n = std::stoi(cmd.args[2].c_str());
-        auto content = dbg.get_long(addr, n);
+      std::vector<uint64_t> content = {};
+      size_t n = 1;
+      uint64_t addr = 0;
+      if (cmd.args.size() == 2) {
+        if (cmd.args[1].starts_with("0x")) {
+          addr = std::strtol(cmd.args[1].c_str(), NULL, 16);
 
-        if (content.size() != n) {
-          std::cout << "could not read data" << std::endl;
-          continue;
+          content =  dbg.get_long(addr, n);
+        } else if (dbg.get_reg(cmd.args[1]) != 0) {
+          addr = dbg.get_reg(cmd.args[1]);
+
+          content =  dbg.get_long(addr, n);
+        } else {
+          addr = dbg.get_symbol_addr(cmd.args[1]);
+          
+          content = dbg.get_long(addr, n);
         }
+      } else if (cmd.args.size() == 3) {
+        n = std::strtol(cmd.args[2].c_str(), NULL, 10);
 
-        for (size_t i = 0; i < n; i++) {
-          std::cout << "0x" << std::hex << addr + i*8 << ": 0x" << std::hex << content[i] << std::endl;
+        if (cmd.args[1].starts_with("0x")) {
+          addr = std::strtol(cmd.args[1].c_str(), NULL, 16);
+
+          content =  dbg.get_long(addr, n);
+        } else if (dbg.get_reg(cmd.args[1]) != 0) {
+          addr = dbg.get_reg(cmd.args[1]);
+
+          content =  dbg.get_long(addr, n);
+        } else {
+          addr = dbg.get_symbol_addr(cmd.args[1]);
+          
+          content = dbg.get_long(addr, n);
         }
       }
-    } else if (cmd.cmd == "xw") {
-      if (cmd.args.size() == 3) {
-        uint64_t addr = std::strtol(cmd.args[1].c_str(), NULL, 16);
-        size_t n = std::stoi(cmd.args[2].c_str());
-        auto content = dbg.get_word(addr, n);
 
-        if (content.empty()) {
-          std::cout << "could not read data" << std::endl;
-          continue;
+      if (content.size() != n) {
+        std::cout << "could not read data" << std::endl;
+        continue;
+      }
+      
+      int counter = 0;
+      for (const auto& val : content) {
+        std::cout << fmt::yellow << "0x" << std::hex << (addr + counter) << fmt::endc << ": " << fmt::addr_64(val) << std::endl;
+        counter += 8;
+      }
+    } else if (cmd.cmd == "xw" || cmd.cmd == "x") {
+      std::vector<uint32_t> content = {};
+
+      size_t n = 1;
+      uint64_t addr = 0;
+      if (cmd.args.size() == 2) {
+        if (cmd.args[1].starts_with("0x")) {
+          addr = std::strtol(cmd.args[1].c_str(), NULL, 16);
+
+          content =  dbg.get_word(addr, n);
+        } else if (dbg.get_reg(cmd.args[1]) != 0) {
+          addr = dbg.get_reg(cmd.args[1]);
+
+          content =  dbg.get_word(addr, n);
+        } else {
+          addr = dbg.get_symbol_addr(cmd.args[1]);
+          
+          content = dbg.get_word(addr, n);
         }
-        for (size_t i = 0; i < n; i++) {
-          std::cout << "0x" << std::hex << addr + i*4 << ": 0x" << std::hex << content[i] << std::endl;
+      } else if (cmd.args.size() == 3) {
+        n = std::strtol(cmd.args[2].c_str(), NULL, 10);
+
+        if (cmd.args[1].starts_with("0x")) {
+          addr = std::strtol(cmd.args[1].c_str(), NULL, 16);
+
+          content =  dbg.get_word(addr, n);
+        } else if (dbg.get_reg(cmd.args[1]) != 0) {
+          addr = dbg.get_reg(cmd.args[1]);
+
+          content =  dbg.get_word(addr, n);
+        } else {
+          addr = dbg.get_symbol_addr(cmd.args[1]);
+          
+          content = dbg.get_word(addr, n);
         }
+      }
+
+      if (content.size() != n) {
+        std::cout << "could not read data" << std::endl;
+        continue;
+      }
+      
+      int counter = 0;
+      for (const auto& val : content) {
+        std::cout << fmt::yellow << "0x" << std::hex << (addr + counter) << fmt::endc << ": " << fmt::addr_32(val) << std::endl;
+        counter += 8;
       }
     } else if (cmd.cmd == "D") {
       if (cmd.args.size() == 2) {
@@ -163,45 +236,44 @@ int main(int argc, char *argv[]) {
         dbg.delete_breakpoint(addr);
         std::cout << "deleted breakpoint at: 0x" << std::hex << addr << std::endl;
       }
-    } else if (cmd.cmd == "dw") {
-      if (cmd.args.size() == 3) {
-        size_t n = std::stoi(cmd.args[2].c_str());
-        uint64_t addr =  std::stoul(cmd.args[1].c_str(), NULL, 16);
+    } else if (cmd.cmd == "ds" || cmd.cmd == "disass" || cmd.cmd == "disassemble") {
+      // DISASSEMBLE STUFF
+      std::vector<Instruction> instructions;
 
-        std::cout << "disassembling " << std::hex << addr  << ":" << std::endl; 
-
-        auto instructions = dbg.disassemble(addr, 4*n);
-
-        for (auto instr: instructions) {
-          std::cout << instr.str() << std::endl;
-        }
-
-      } 
-    } else if (cmd.cmd == "db") {
-      if (cmd.args.size() == 3) {
-        size_t n = std::stoi(cmd.args[2].c_str());
-        uint64_t addr =  std::strtol(cmd.args[1].c_str(), NULL, 16);
-
-        std::cout << "disassembling " << std::hex << addr  << ":" << std::endl; 
-
-        auto instructions = dbg.disassemble(addr, n);
-
-        for (auto instr: instructions) {
-          std::cout << instr.str() << std::endl;
-        }
-
-      }
-    } else if (cmd.cmd == "ds") {
       if (cmd.args.size() == 2) {
-        std::string symbol = cmd.args[1];
+        if (cmd.args[1].starts_with("0x")) {
+          auto addr = std::strtol(cmd.args[1].c_str(), NULL, 16);
 
-        std::cout << "disassembling " << symbol  << ":" << std::endl; 
-        auto instructions = dbg.disassemble(symbol); 
+          instructions = dbg.disassemble(addr, 4);
+        } else if (dbg.get_reg(cmd.args[1]) != 0) {
+          auto addr = dbg.get_reg(cmd.args[1]);
 
-        for (auto instr: instructions) {
-          std::cout << instr.str() << std::endl;
+          instructions = dbg.disassemble(addr, 4);
+        } else {
+          instructions = dbg.disassemble(cmd.args[1]);
         }
-        //}
+
+      } else if (cmd.args.size() == 3) {
+        size_t n = std::strtol(cmd.args[2].c_str(), NULL, 10);
+
+        if (cmd.args[1].starts_with("0x")) {
+          uint64_t addr = std::strtol(cmd.args[1].c_str(), NULL, 16);
+
+          instructions = dbg.disassemble(addr, n);
+        } else if (dbg.get_reg(cmd.args[1]) != 0) {
+          auto addr = dbg.get_reg(cmd.args[1]);
+
+          instructions = dbg.disassemble(addr, n);
+        } else {
+          auto addr = dbg.get_symbol_addr(cmd.args[1]);
+          if (addr != 0) {
+            instructions = dbg.disassemble(addr, n);
+          }
+        }
+      }
+
+      for (const auto& instr: instructions) {
+        std::cout << instr.str() << std::endl;
       }
     } else if (cmd.cmd == "vmmap") {
       dbg.print_vmmap();

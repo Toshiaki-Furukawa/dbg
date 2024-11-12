@@ -13,7 +13,8 @@
 
 class ELF {
 private:
-  const char* filename;
+  //const char* filename;
+  std::string filename;
   char *content; 
   size_t content_size;
   //int machine;            // stores machine or -1 if the file could not be read
@@ -43,7 +44,8 @@ private:
   void read_sections_i386();
  
 public:
-  ELF(const char* filename);
+  //ELF(const char* filename);
+  ELF(std::string filename);
 
   ~ELF();
  
@@ -51,7 +53,8 @@ public:
  
   arch_t get_machine() const;
   
-  const char* get_filename() const;
+  //const char* get_filename() const;
+  std::string get_filename() const;
   
   bool pie() const;
 
