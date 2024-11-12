@@ -28,8 +28,8 @@ vmmap                    print vmmap
 
 ds (sym|0xADDR|reg) [n]    disassemble symbol sym (n bytes)
 
-xw 0xADDR [n]              inspect n words from address  (n bytes)
-x (0xADDR|sym|reg) [n]     inspect n words from address  (n bytes)
+xw (0xADDR|sym|reg) [n]              inspect n words from address  (n bytes)
+x  (0xADDR|sym|reg) [n]     inspect n words from address  (n bytes)
 xl (0xADDR|sym|reg) [n]    inspect n long from address   (n bytes)
 
 log            creates a log of current debugger state
