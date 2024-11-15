@@ -23,14 +23,23 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
+enum MATH_OP {
+  ADD,
+  SUB,
+  MUL,
+  DIV,
+  BRA_OPEN,
+  BRA_CLOSE
+};
+
 command_t get_cmd() { 
   command_t ret;
   std::string cmd;
 
 
   char *inpt = NULL;
-  std::cout << fmt::green << "wg> " << fmt::endc;
-  inpt = readline(" ");
+  //std::cout << fmt::green << "wg> " << fmt::endc;
+  inpt = readline("\033[32mwg> \033[0m");
   add_history(inpt);
 
   std::stringstream ss {inpt};
@@ -47,6 +56,128 @@ command_t get_cmd() {
 
   return ret;
 }
+
+
+uint64_t eval_op(uint64_t a, uint64_t b, MATH_OP op) {
+  if (op == ADD) {
+    return a + b;
+  } else if (op == MATH_OP::SUB) {
+    return a - b;
+  } else if (op == MATH_OP::MUL) {
+    return a * b;
+  } else if (op == MATH_OP::DIV) {
+    return a / b;
+  } else {
+    return 0;
+  }
+}
+
+bool is_opchar(std::string str, size_t idx) {
+  if (str[idx] != '+' && str[idx] != '-' && str[idx] != '*' && str[idx] != '/' && str[idx] != '(' && str[idx] != ')') {
+    return false;
+  }
+  return true;
+}
+
+std::string get_word(std::string str, size_t idx) {
+  std::string terminal;
+
+  while (idx < str.size() && !is_opchar(str, idx)) {
+    terminal += str[idx];
+    idx++;
+  }
+
+  return terminal;
+}
+
+
+uint64_t eval(Debugger& dbg, std::string expr, size_t& n_bytes) {
+  std::vector<uint64_t> values;
+  std::vector<MATH_OP> ops;
+  
+  n_bytes = 1;
+
+  for (size_t i = 0; i < expr.size(); i++) { 
+    if (expr[i] == '(') {
+      ops.push_back(MATH_OP::BRA_OPEN); 
+    }  else if (expr[i] == ')') {
+      while (!ops.empty() && ops.back() != MATH_OP::BRA_OPEN) {
+        auto a = values.back();
+        values.pop_back();
+        auto b = values.back();
+        values.pop_back();
+
+        MATH_OP op = ops.back();
+        ops.pop_back();
+        values.push_back(eval_op(a, b, op));
+      }
+
+      if (!ops.empty()) {
+        ops.pop_back();
+      }
+    } else if (expr[i] == '*' || expr[i] == '/') {
+      if (expr[i] == '*') {
+        ops.push_back(MATH_OP::MUL);
+      } else if (expr[i] == '/') {
+        ops.push_back(MATH_OP::DIV);
+      }
+    } else if (expr[i] == '+' || expr[i] == '-') {
+      while (!ops.empty() && (ops.back() == MATH_OP::MUL || ops.back() == MATH_OP::DIV)) {
+        auto a = values.back();
+        values.pop_back();
+        
+        auto b = values.back();
+        values.pop_back();
+
+        MATH_OP op = ops.back();
+        ops.pop_back();
+        values.push_back(eval_op(a, b, op));
+      } 
+      
+      if (expr[i] == '+') {
+        ops.push_back(MATH_OP::ADD);
+      } else if (expr[i] == '-') {
+        ops.push_back(MATH_OP::SUB);
+      }
+    } else {
+      std::string terminal = get_word(expr, i);
+      uint64_t addr = 0;
+
+      if (terminal.starts_with("0x")) {
+        addr = std::strtol(terminal.c_str(), NULL, 16);
+      } else if (std::strtol(terminal.c_str(), NULL, 10) != 0) {
+        addr = std::strtol(terminal.c_str(), NULL, 10);
+      } else if (dbg.get_reg(terminal) != 0) {
+        addr = dbg.get_reg(terminal);
+      } else {
+        addr = dbg.get_symbol_addr(terminal);
+
+        n_bytes = (n_bytes == 1) ? addr : n_bytes;
+      }
+
+      i += terminal.size() - 1;
+      values.push_back(addr);
+    }
+  }
+
+  // TODO: fix subtraction 
+ 
+  while (!ops.empty()) {
+    auto a = values.back();
+    values.pop_back();
+        
+    auto b = values.back();
+    values.pop_back();
+
+    MATH_OP op = ops.back();
+    ops.pop_back();
+    values.push_back(eval_op(a, b, op));
+  } 
+
+  return values.back();
+}
+
+
 
 int main(int argc, char *argv[]) {
   // test
@@ -104,13 +235,21 @@ int main(int argc, char *argv[]) {
       dbg.log_state(); 
     } else if (cmd.cmd == "b") {
       if (cmd.args.size() == 2) {
-        uint64_t addr = 0;
+        /*uint64_t addr = 0;
 
         if (cmd.args[1].starts_with("0x")) {
           addr = std::strtol(cmd.args[1].c_str(), NULL, 16);
         } else {
           addr = dbg.get_symbol_addr(cmd.args[1]);
         }
+        if (addr == 0) {
+          std::cout << "Invalid position!" << std::endl;
+          continue;
+        }*/
+        uint64_t addr = 0;
+        size_t sym_size = 1;
+        addr = eval(dbg, cmd.args[1], sym_size);
+
         if (addr == 0) {
           std::cout << "Invalid position!" << std::endl;
           continue;
@@ -142,35 +281,16 @@ int main(int argc, char *argv[]) {
       size_t n = 1;
       uint64_t addr = 0;
       if (cmd.args.size() == 2) {
-        if (cmd.args[1].starts_with("0x")) {
-          addr = std::strtol(cmd.args[1].c_str(), NULL, 16);
+        addr = eval(dbg, cmd.args[1], n);
+        content = dbg.get_long(addr, n);
 
-          content =  dbg.get_long(addr, n);
-        } else if (dbg.get_reg(cmd.args[1]) != 0) {
-          addr = dbg.get_reg(cmd.args[1]);
-
-          content =  dbg.get_long(addr, n);
-        } else {
-          addr = dbg.get_symbol_addr(cmd.args[1]);
-          
-          content = dbg.get_long(addr, n);
-        }
       } else if (cmd.args.size() == 3) {
         n = std::strtol(cmd.args[2].c_str(), NULL, 10);
 
-        if (cmd.args[1].starts_with("0x")) {
-          addr = std::strtol(cmd.args[1].c_str(), NULL, 16);
+        size_t tmp = 1;
 
-          content =  dbg.get_long(addr, n);
-        } else if (dbg.get_reg(cmd.args[1]) != 0) {
-          addr = dbg.get_reg(cmd.args[1]);
-
-          content =  dbg.get_long(addr, n);
-        } else {
-          addr = dbg.get_symbol_addr(cmd.args[1]);
-          
-          content = dbg.get_long(addr, n);
-        }
+        addr = eval(dbg, cmd.args[1], tmp);
+        content = dbg.get_long(addr, n);
       }
 
       if (content.size() != n) {
@@ -178,7 +298,7 @@ int main(int argc, char *argv[]) {
         continue;
       }
       
-      int counter = 0;
+      uint64_t counter = 0;
       for (const auto& val : content) {
         std::cout << fmt::yellow << "0x" << std::hex << (addr + counter) << fmt::endc << ": " << fmt::addr_64(val) << std::endl;
         counter += 8;
@@ -189,35 +309,16 @@ int main(int argc, char *argv[]) {
       size_t n = 1;
       uint64_t addr = 0;
       if (cmd.args.size() == 2) {
-        if (cmd.args[1].starts_with("0x")) {
-          addr = std::strtol(cmd.args[1].c_str(), NULL, 16);
+        addr = eval(dbg, cmd.args[1], n);
+        content = dbg.get_word(addr, n);
 
-          content =  dbg.get_word(addr, n);
-        } else if (dbg.get_reg(cmd.args[1]) != 0) {
-          addr = dbg.get_reg(cmd.args[1]);
-
-          content =  dbg.get_word(addr, n);
-        } else {
-          addr = dbg.get_symbol_addr(cmd.args[1]);
-          
-          content = dbg.get_word(addr, n);
-        }
       } else if (cmd.args.size() == 3) {
         n = std::strtol(cmd.args[2].c_str(), NULL, 10);
 
-        if (cmd.args[1].starts_with("0x")) {
-          addr = std::strtol(cmd.args[1].c_str(), NULL, 16);
+        size_t tmp = 1;
 
-          content =  dbg.get_word(addr, n);
-        } else if (dbg.get_reg(cmd.args[1]) != 0) {
-          addr = dbg.get_reg(cmd.args[1]);
-
-          content =  dbg.get_word(addr, n);
-        } else {
-          addr = dbg.get_symbol_addr(cmd.args[1]);
-          
-          content = dbg.get_word(addr, n);
-        }
+        addr = eval(dbg, cmd.args[1], tmp);
+        content = dbg.get_word(addr, n);
       }
 
       if (content.size() != n) {
@@ -225,10 +326,10 @@ int main(int argc, char *argv[]) {
         continue;
       }
       
-      int counter = 0;
+      uint64_t counter = 0;
       for (const auto& val : content) {
-        std::cout << fmt::yellow << "0x" << std::hex << (addr + counter) << fmt::endc << ": " << fmt::addr_32(val) << std::endl;
-        counter += 8;
+        std::cout << fmt::yellow << "0x" << std::hex << (counter + addr)  << fmt::endc << ": " << fmt::addr_32(val) << std::endl;
+        counter += 4;
       }
     } else if (cmd.cmd == "D") {
       if (cmd.args.size() == 2) {
