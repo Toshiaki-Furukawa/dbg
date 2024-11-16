@@ -21,91 +21,6 @@
 #include "dbg.hpp"
 #include "disass.hpp"
 #include "fmt.hpp"
-/*
-struct memory_chunk {
-  uint64_t start;
-  uint32_t size;
-  uint8_t* content;
-
-} chunk_t;
-
-struct program_state {
-  uint64_t addr;
-  
-  chunk_t heap;
-  chunk_t stack; 
-
-  Registers regs;
-} typedef state_t;
-
-class ExecHistory {
-private:
-  //std::vector<Registers> register_history;
-  std::Vector<state_t> state_log;
-
-public:
-  ExecHistory() {
-    mem_log = {};
-    register_history = {};
-  }
-
-  void log(state_t state) {
-    state_log.emplace_back(state); 
-  }
-
-  bool is_logged(uint64_t addr) {
-    for (const auto& state : state_log) {
-      if (state.addr == addr) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  chunk_t get_stack(uint32_t n) {
-    if (n > state_log.size()) {
-      return nullptr;
-    }
-
-    auto stack_chunk = state_log[n].stack;
-    if (stack_chunk.start == 0x0) {
-      return nullptr;
-    }
-    return stack_chunk;
-  }
-
-  chunk_t get_heap(uint32_t n) {
-    if (n > state_log.size()) {
-      return nullptr;
-    }
-
-    auto heap_chunk = state_log[n].heap;
-    if (heap_chunk.start == 0x0) {
-      return nullptr;
-    }
-    return heap_chunk;
-  }
-
-  Registers& get_registers(uint32_t n) {
-    if (n > state_log.size()) {
-      return nullptr;
-    }
-
-    return state_log[n].regs;
-  }
-
-  std::string str() {
-    std::stringstream ss;
-    int idx = 0;
-    for (const auto& state : state_log) {
-      ss << "Checkpoint nr. " << idx << " at PC: " << std::addr_64(state.addr) <<  std::endl;
-      ss << "   heap: " << std::addr_64(state.heap.start) << std::endl;
-      ss << "   stack: " << std::addr_64(state.heap.start) << std::endl << std::endl;
-    } 
-    return ss.str();   
-  }
-};*/
 
 bool is_elf(std::string file) {
   std::ifstream file_content(file, std::ios::binary | std::ios::ate);
@@ -131,7 +46,6 @@ bool is_elf(std::string file) {
   return true;
 }
 
-//void Debugger::enable_breakpoint(Breakpoint *bp) {
 void Debugger::enable_breakpoint(Breakpoint& bp) {
   if (WIFEXITED(status)) {
     return;
@@ -144,7 +58,6 @@ void Debugger::enable_breakpoint(Breakpoint& bp) {
   bp.enable();
 }
 
-//void Debugger::disable_breakpoint(Breakpoint *bp) {
 void Debugger::disable_breakpoint(Breakpoint& bp) {
   if (WIFEXITED(status)) {
     return;
@@ -245,11 +158,8 @@ uint8_t *Debugger::get_bytes_from_file(std::string filename, uint64_t addr, uint
       std::cout << "filename invalid" << std::endl;
       return NULL;
     }
-    //elf_ptr = file_entry->second;
     return file_entry->second->get_n_bytes_at_addr(addr, n);
   } 
-  //const ELF *elf_ptr = file_entry->second;
-  //return elf_ptr->get_n_bytes_at_addr(addr, n);
 }
 
 uint8_t *Debugger::get_bytes_from_memory(uint64_t addr, uint32_t n) {
@@ -302,8 +212,6 @@ void Debugger::write_bytes_to_memory(uint64_t addr, uint8_t* bytes, uint32_t n) 
 
 //Debugger::Debugger (const char *filename) : filename(filename) {
 Debugger::Debugger (std::string filename) : filename(filename) {
-  //elf = NULL;
-  //regs = NULL;
   if (!std::filesystem::exists(filename)) {
     std::cout << "file does not exist" << std::endl;
     return;
@@ -324,7 +232,6 @@ Debugger::Debugger (std::string filename) : filename(filename) {
   init_proc();
 
   read_vmmap();
-  //load_elftable();
 
   regs->peek(proc);
   kill(proc, SIGKILL);
@@ -332,6 +239,7 @@ Debugger::Debugger (std::string filename) : filename(filename) {
   proc = 0;
   return;
 }
+
 Debugger::~Debugger() {
   if (regs != NULL) {
     delete regs;
