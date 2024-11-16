@@ -107,8 +107,8 @@ class Debugger {
 private:
   std::string filename;
   ELF* elf;
+  ELF* libc;
 
-  //user_regs_struct regs;
   Registers *regs;
   pid_t proc;
   int status;
@@ -118,9 +118,6 @@ private:
   std::vector<MapEntry> vmmap;
   std::unordered_map<std::string, const ELF*> elf_table;
 
-  //History program_history;
-  //std::vector<Registers> register_log;
-  //std::vector<std::unordered_map<uint64_t, uint8_t*>> mem_log;
   ExecHistory program_history;
 
   arch_t arch;

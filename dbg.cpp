@@ -227,7 +227,8 @@ Debugger::Debugger (std::string filename) : filename(filename) {
   } else {
     std::cout << "ELF is not PIE" << std::endl;
   }
-  
+
+  libc = NULL;  
   regs = new Registers(arch);
   init_proc();
 
@@ -286,6 +287,8 @@ void Debugger::init_proc() {
     read_vmmap();
     //load_elftable();
 
+    // get libc
+
     for (const auto& entry: vmmap)  {
       auto filename = entry.get_file();
 
@@ -295,28 +298,33 @@ void Debugger::init_proc() {
       }
     }
 
+    // inject shellcode
+    auto start_addr = elf->get_symbol_addr("_start");
+
+    uint64_t shellcode;
+    if (arch == arch_t::ARCH_X86_64) {
+      shellcode = 0x90ccd0ff57909090;
+    } else if (arch == arch_t::ARCH_X86_32) {
+      shellcode = 0x90ccd0ff90909090;
+    } else {
+      std::cout << "[ERROR] architecture not valid" << std::endl;
+      return;
+    }
+
+    uint64_t orig_start = ptrace(PTRACE_PEEKDATA, proc,start_addr, NULL);
+
+    if (ptrace(PTRACE_POKEDATA, proc, start_addr, shellcode) < 0) {
+      std::cout << "Could not inject shellcode" << std::endl;
+      return;
+    }
+
 
     // Stop at _start for process injection 
-    uint8_t *bytes;
-  
-    auto start_addr = elf->get_symbol_addr("_start");
-    if (start_addr == 0) {
-      return;
-    }
-
-    // make breakpoint
-    bytes = get_bytes_from_file(elf->get_filename(), start_addr, 1);
-
-    if (bytes == NULL) {
-      return;
-    }
-
-    char data = static_cast<char>(bytes[0]);
+    char data = '\x90'; //static_cast<char>(bytes[0]);
 
     Breakpoint start_bp = Breakpoint(start_addr, data);
     enable_breakpoint(start_bp);
   
-    delete[] bytes;
 
     // continue to _start 
     ptrace(PTRACE_CONT, proc, NULL, NULL);
@@ -339,6 +347,86 @@ void Debugger::init_proc() {
         regs->peek(proc);
       }
     }
+    
+    read_vmmap();
+
+    // setup libc
+    if (libc == NULL) {
+      for (const auto& entry: vmmap) {
+        auto filename = entry.get_file();
+
+        if (filename.find("libc") != std::string::npos) {
+          libc = new ELF(filename);
+          libc->rebase(entry.get_start());
+          break;
+        }
+      }
+    }
+
+    uint64_t malloc_addr = libc->get_symbol_addr("malloc");
+
+    // registers that will be changed
+    uint64_t orig_sp;
+    uint64_t orig_di;
+    uint64_t orig_ax;
+
+    std::string di;
+    std::string sp; 
+    std::string ax;
+
+    // setup registers for call
+    if (arch == arch_t::ARCH_X86_64) {
+      orig_sp = regs->get_by_name("rsp");
+      orig_di = regs->get_by_name("rdi");
+      orig_ax = regs->get_by_name("rax");
+
+      di = "rdi";
+      ax = "rax";
+      sp = "rsp";
+    } else if (arch == arch_t::ARCH_X86_32) {
+      orig_sp = regs->get_by_name("esp");
+      orig_di = regs->get_by_name("edi");
+      orig_ax = regs->get_by_name("eax");
+
+      di = "edi";
+      ax = "eax";
+      sp = "esp";
+    } else {
+      std::cout << "[ERROR] architecture not valid" << std::endl;
+      return;
+    }
+    //auto orig_esp = regs->get_by_name("esp");
+    //auto orig_ebx = regs->get_by_name("ebx");
+    //auto orig_eax = regs->get_by_name("eax");
+
+    //regs->set_by_name("ebx", 0x1);
+    regs->set_by_name(di, 0x1);
+    regs->set_by_name(ax, malloc_addr);
+    //regs->set_by_name("eax", malloc_addr);
+    regs->poke(proc);
+
+    ptrace(PTRACE_CONT, proc, NULL, NULL);
+
+    waitpid(proc, &status, 0);
+
+    if (WIFSTOPPED(status)) {
+      if (ptrace(PTRACE_POKEDATA, proc, start_addr, orig_start) < 0) {
+        std::cout << "could not restore state" << std::endl;
+      }
+
+      regs->set_pc(start_addr);
+
+      //regs->set_by_name("ebx", orig_ebx);
+      //regs->set_by_name("esp", orig_esp);
+      //regs->set_by_name("eax", orig_eax);
+      regs->set_by_name(di, orig_di);
+      regs->set_by_name(sp, orig_sp);
+      regs->set_by_name(ax, orig_ax);
+      regs->poke(proc);
+    } else {
+      std::cout << "shellcode injection failed" << std::endl;
+    }
+
     return;
 }
 
@@ -354,7 +442,7 @@ void Debugger::run() {
 
 
   init_proc();
-  load_elftable();
+  //load_elftable();
 
   for (auto& bp: breakpoints) {
     enable_breakpoint(bp.second);
@@ -453,13 +541,13 @@ void Debugger::log_state() {
 }
 
 void Debugger::restore_state(uint32_t n) {
-  /*if (proc == 0 || WIFEXITED(status)) {
-    return;
-  }*/
-
   if (proc == 0 || WIFEXITED(status)) {
     init_proc();
-    return;
+  } else {
+    kill(proc, SIGKILL);
+    waitpid(proc, &status, 0);
+   
+    init_proc(); 
   }
 
   auto state_regs = program_history.get_registers(n);
@@ -491,6 +579,10 @@ void Debugger::restore_state(uint32_t n) {
 
   
   regs->peek(proc);
+  for (auto& bp: breakpoints) {
+    enable_breakpoint(bp.second);
+  }
+ 
   std::cout << "successfully restored state" << std::endl;
   return;
 }
@@ -614,13 +706,7 @@ std::vector<Instruction> Debugger::disassemble(std::string symbol) {
     return instructions;
   }
 
-  //uint32_t size = get_symbol_size(symbol);
-
   instructions = disassemble(addr, size);
-  //if (instructions.size() > 0) {
-  //  return instructions;
-  
-  //std::cout << instructions[0].str() << std::endl;
   return instructions;
 }
 
