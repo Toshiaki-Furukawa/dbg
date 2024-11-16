@@ -131,78 +131,60 @@ bool is_elf(std::string file) {
   return true;
 }
 
-void Debugger::enable_breakpoint(Breakpoint *bp) {
+//void Debugger::enable_breakpoint(Breakpoint *bp) {
+void Debugger::enable_breakpoint(Breakpoint& bp) {
   if (WIFEXITED(status)) {
     return;
   }
 
-  auto data = ptrace(PTRACE_PEEKDATA, proc, bp->get_addr(), NULL);
+  auto data = ptrace(PTRACE_PEEKDATA, proc, bp.get_addr(), NULL);
   auto mod_data = ((data & ~0xff) | 0xcc);
 
-  ptrace(PTRACE_POKEDATA, proc, bp->get_addr(), mod_data);
-  bp->enable();
+  ptrace(PTRACE_POKEDATA, proc, bp.get_addr(), mod_data);
+  bp.enable();
 }
 
-void Debugger::disable_breakpoint(Breakpoint *bp) {
+//void Debugger::disable_breakpoint(Breakpoint *bp) {
+void Debugger::disable_breakpoint(Breakpoint& bp) {
   if (WIFEXITED(status)) {
     return;
   }
 
-  auto data = ptrace(PTRACE_PEEKDATA, proc, bp->get_addr(), NULL);
-  auto orig_data = ((data & ~0xff) | bp->get_data());
+  auto data = ptrace(PTRACE_PEEKDATA, proc, bp.get_addr(), NULL);
+  auto orig_data = ((data & ~0xff) | bp.get_data());
 
-  ptrace(PTRACE_POKEDATA, proc, bp->get_addr(), orig_data);
+  ptrace(PTRACE_POKEDATA, proc, bp.get_addr(), orig_data);
 
-  bp->disable(); 
+  bp.disable(); 
 }
 
 uint64_t Debugger::get_symbol_addr(std::string sym) {
-  uint64_t ret = 0;
+  if (elf->get_symbol_addr(sym) != 0) {
+    return elf->get_symbol_addr(sym);
+  }
 
   for (const auto& entry : elf_table) {
     auto addr = entry.second->get_symbol_addr(sym);
     if (addr != 0) {
-      if (ret == 0) {
-        ret = addr;
-      }
-
-      if (entry.first == elf->get_filename()) {
-        ret = addr;
-      }
-    }
-
-    /*if (addr != 0) {
       return addr;
-    }*/
+    }
   }
-  return ret;
+  
+  return 0;
 }
 
-uint32_t Debugger::get_symbol_size(std::string sym) {
-  uint64_t ret = 0;
+size_t Debugger::get_symbol_size(std::string sym) {
+  if (elf->get_symbol_addr(sym) != 0) {
+    return elf->get_symbol_size(sym);
+  }
 
   for (const auto& entry : elf_table) {
-    auto addr = entry.second->get_symbol_addr(sym);
-    if (ret == 0) {
-      ret = addr;
-    }
-
-    if (entry.first == elf->get_filename()) {
-      ret = addr;
-    }
-
-    if (addr != 0) {
-      if (ret == 0) {
-        ret = entry.second->get_symbol_size(sym);
-      }
-
-      if (entry.first == elf->get_filename()) {
-        ret = entry.second->get_symbol_size(sym);
-      }
-      //return entry.second->get_symbol_size(sym);
+    if (entry.second->get_symbol_addr(sym) != 0) {
+      return entry.second->get_symbol_size(sym);
     }
   }
-  return ret;
+
+  return 0;
 }
 
 void Debugger::read_vmmap() {
@@ -239,28 +221,35 @@ std::string Debugger::get_file_from_addr(uint64_t addr) {
   }
 
   if (entry == vmmap.end()) {
-    //std::cout << "address not found" << std::endl; 
     return ret;
+  }
+  
+  if (entry->get_file() == elf->get_filename()) {
+    return entry->get_file(); 
   }
 
   auto file = elf_table.find(entry->get_file());
   if (file == elf_table.end()) {
-    //std::cout << "cant disassemble this region" << std::endl; 
     return ret;
   }
   return entry->get_file();
 }
 
 uint8_t *Debugger::get_bytes_from_file(std::string filename, uint64_t addr, uint32_t n) {
-  auto file_entry = elf_table.find(filename);
+  if (filename == elf->get_filename()) {
+    return elf->get_n_bytes_at_addr(addr, n);
+  } else {
+    auto file_entry = elf_table.find(filename);
 
-  if (file_entry == elf_table.end()) {
-    std::cout << "filename invalid" << std::endl;
-    return NULL;
-  }
-
-  const ELF *elf_ptr = file_entry->second;
-  return elf_ptr->get_n_bytes_at_addr(addr, n);
+    if (file_entry == elf_table.end()) {
+      std::cout << "filename invalid" << std::endl;
+      return NULL;
+    }
+    //elf_ptr = file_entry->second;
+    return file_entry->second->get_n_bytes_at_addr(addr, n);
+  } 
+  //const ELF *elf_ptr = file_entry->second;
+  //return elf_ptr->get_n_bytes_at_addr(addr, n);
 }
 
 uint8_t *Debugger::get_bytes_from_memory(uint64_t addr, uint32_t n) {
@@ -311,89 +300,39 @@ void Debugger::write_bytes_to_memory(uint64_t addr, uint8_t* bytes, uint32_t n) 
 }
 
 
-Debugger::Debugger (const char *filename) : filename(filename) {
-  elf = NULL;
-  regs = NULL;
-  // register_history = {};
-
+//Debugger::Debugger (const char *filename) : filename(filename) {
+Debugger::Debugger (std::string filename) : filename(filename) {
+  //elf = NULL;
+  //regs = NULL;
   if (!std::filesystem::exists(filename)) {
     std::cout << "file does not exist" << std::endl;
     return;
   }
 
-  proc = fork();
-  if (proc == -1) {
-    std::cout << "Error while forking" << std::endl;  
-    exit(-1);
-  }
+  elf = new ELF(std::filesystem::absolute(filename));
+  elf_table = {};
 
+  arch = elf->get_machine();
 
-  if (proc == 0) {
-    personality(ADDR_NO_RANDOMIZE);
-
-    ptrace(PTRACE_TRACEME, proc, NULL, NULL);
-
-    execl(filename, filename, NULL, NULL);
-    //const char *env_list[] = { "LD_PRELOAD=/lib/libc.so.6", NULL }; 
-    //execle(filename, filename, NULL, env_list);
+  if (elf->pie()) {
+    std::cout << "ELF is PIE" << std::endl;
   } else {
-    waitpid(proc, &status, 0);
-    ptrace(PTRACE_SETOPTIONS, proc, NULL, PTRACE_O_EXITKILL);
-    std::cout << "tracing process pid: " << proc << std::endl;
-
-    // get memory mapping of child process
-    std::cout << "reading vmmap" << std::endl;
-    read_vmmap();
-
-    // read files that are in memory
-    for (const auto& entry: vmmap)  {
-      auto filename = entry.get_file();
-
-      if (is_elf(filename) && (elf_table.find(filename) == elf_table.end())) {
-        ELF *vmmap_elf_file = new ELF(filename.c_str());
-        vmmap_elf_file->rebase(entry.get_start());
-
-        if (elf == NULL) {
-          elf = vmmap_elf_file;
-        }
-
-        elf_table.insert(std::pair(filename, vmmap_elf_file));
-      }
-    }
-    if (elf == NULL) {
-      return;
-    }
-
-    /*switch (elf->get_machine()) {
-    case EM_X86_64:
-      std::cout << "Arch: x86-64" << std::endl;
-      arch = ARCH_X86_64;
-      break;
-    case EM_386:
-      std::cout << "Arch: i386" << std::endl;
-      arch = ARCH_X86_32;
-      break;
-    default:
-      std::cout << "could not read arch" << std::endl;
-      arch = ARCH_UNDEF;
-      break;
-    }*/
-    arch = elf->get_machine();
-
-    if (elf->pie()) {
-      std::cout << "ELF is PIE" << std::endl;
-    } else {
-      std::cout << "ELF is not PIE" << std::endl;
-    }
-
-    regs = new Registers(arch);
-    regs->peek(proc);
-    return;
+    std::cout << "ELF is not PIE" << std::endl;
   }
-}
+  
+  regs = new Registers(arch);
+  init_proc();
 
+  read_vmmap();
+  //load_elftable();
+
+  regs->peek(proc);
+  kill(proc, SIGKILL);
+  waitpid(proc, &status, 0);
+  proc = 0;
+  return;
+}
 Debugger::~Debugger() {
-  //delete elf;
   if (regs != NULL) {
     delete regs;
   }
@@ -405,21 +344,21 @@ Debugger::~Debugger() {
   elf_table.clear();
 }
 
-void Debugger::reset() { 
-  kill(proc, SIGKILL);
-  waitpid(proc, &status, 0);
 
-  if (WIFSIGNALED(status)) {
-    std::cout << "tracee killed" << std::endl;
+void Debugger::load_elftable() {
+  for (const auto& entry: vmmap) {
+    auto elf_filename = entry.get_file();
+
+    if (is_elf(elf_filename) && (elf_table.find(elf_filename) == elf_table.end())) {
+      ELF *vmmap_elf_file = new ELF(elf_filename.c_str());
+      vmmap_elf_file->rebase(entry.get_start());
+
+      elf_table.insert(std::pair(elf_filename, vmmap_elf_file));
+    }
   }
+}
 
-  if (elf->pie()) {
-    std::cout << "File is PIE" << std::endl;
-  } else {
-    std::cout << "File is not PIE" << std::endl;
-  }
-
-
+void Debugger::init_proc() {
   proc = fork();
   if (proc == -1) {
     std::cout << "Error while forking new process" << std::endl;
@@ -431,24 +370,97 @@ void Debugger::reset() {
 
     ptrace(PTRACE_TRACEME, proc, NULL, NULL);
 
-    execl(filename, filename, NULL, NULL);
-  } else {
+    execl(filename.c_str(), filename.c_str(), NULL, NULL);
+  } 
     waitpid(proc, &status, 0);
     ptrace(PTRACE_SETOPTIONS, proc, NULL, PTRACE_O_EXITKILL);
 
     read_vmmap();
+    //load_elftable();
+
+    for (const auto& entry: vmmap)  {
+      auto filename = entry.get_file();
+
+      if (entry.get_file() == elf->get_filename()) {
+        elf->rebase(entry.get_start());
+        break;
+      }
+    }
+
+
+    // Stop at _start for process injection 
+    uint8_t *bytes;
+  
+    auto start_addr = elf->get_symbol_addr("_start");
+    if (start_addr == 0) {
+      return;
+    }
+
+    // make breakpoint
+    bytes = get_bytes_from_file(elf->get_filename(), start_addr, 1);
+
+    if (bytes == NULL) {
+      return;
+    }
+
+    char data = static_cast<char>(bytes[0]);
+
+    Breakpoint start_bp = Breakpoint(start_addr, data);
+    enable_breakpoint(start_bp);
+  
+    delete[] bytes;
+
+    // continue to _start 
+    ptrace(PTRACE_CONT, proc, NULL, NULL);
+    waitpid(proc, &status, 0);
 
     regs->peek(proc);
 
-    for (auto& bp_it : breakpoints) {
-      enable_breakpoint(&(bp_it.second));
-    }
+    if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP) {
+      auto pc = regs->get_pc();
+      
+      // restore exectution
+      if (pc-1 == start_addr) {
+        disable_breakpoint(start_bp);
 
+        regs->set_pc(pc - 1);
+        regs->poke(proc);
+
+        single_step(); 
+
+        regs->peek(proc);
+      }
+    }
     return;
+}
+
+void Debugger::run() {
+  if (proc != 0) {
+    kill(proc, SIGKILL);
+    waitpid(proc, &status, 0);
   }
+
+  if (WIFSIGNALED(status)) {
+    std::cout << "tracee killed" << std::endl;
+  }
+
+
+  init_proc();
+  load_elftable();
+
+  for (auto& bp: breakpoints) {
+    enable_breakpoint(bp.second);
+  } 
+
+  cont();
 }
 
 int Debugger::cont() {
+  if (WIFEXITED(status) || proc == 0) {
+    std::cout << "program no longer being run" << std::endl;
+    return 0;
+  }
+
   ptrace(PTRACE_CONT, proc, NULL, NULL);
 
   waitpid(proc, &status, 0);
@@ -457,28 +469,29 @@ int Debugger::cont() {
   }
 
   read_vmmap();    
-
+  load_elftable();
 
   if (ptrace(PTRACE_GETSIGINFO, proc, NULL, &signal)  == -1) {
     std::cout << "cant decode signal..." << std::endl;
     return -1;
   }
 
-  regs->peek(proc);
+  //regs->peek(proc);
 
   if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP) {
+    regs->peek(proc);
     auto pc = regs->get_pc();
 
     auto bp_it = breakpoints.find(pc-1);
     if (bp_it != breakpoints.end()) {
-      disable_breakpoint(&(bp_it->second));
+      disable_breakpoint(bp_it->second);
 
       regs->set_pc(pc - 1);
       regs->poke(proc);
 
       single_step(); 
 
-      enable_breakpoint(&(bp_it->second));
+      enable_breakpoint(bp_it->second);
       regs->peek(proc);
     }
  
@@ -492,7 +505,7 @@ int Debugger::cont() {
 }
 
 void Debugger::single_step() {
-  if (WIFEXITED(status)) {
+  if (proc == 0 || WIFEXITED(status)) {
     return;
   }
 
@@ -502,11 +515,14 @@ void Debugger::single_step() {
   }
 
   waitpid(proc, &status, 0);
-  //update_regs();
   regs->peek(proc);
 }
 
 void Debugger::log_state() {
+  if (proc == 0 || WIFEXITED(status)) {
+    return;
+  }
+
   state_t state = {regs->get_pc(), {0x0, 0x0, 0x0}, {0x0, 0x0, 0x0}, *regs};
 
   for (const auto& vmmap_entry : vmmap ) {
@@ -529,6 +545,15 @@ void Debugger::log_state() {
 }
 
 void Debugger::restore_state(uint32_t n) {
+  /*if (proc == 0 || WIFEXITED(status)) {
+    return;
+  }*/
+
+  if (proc == 0 || WIFEXITED(status)) {
+    init_proc();
+    return;
+  }
+
   auto state_regs = program_history.get_registers(n);
 
   if (state_regs == nullptr) {
@@ -592,7 +617,7 @@ void Debugger::set_breakpoint(unsigned long addr) {
   delete[] bytes;
 
   Breakpoint bp = Breakpoint(addr, data);
-  enable_breakpoint(&bp);
+  enable_breakpoint(bp);
 
   breakpoints.emplace(std::pair(addr, bp)); 
 }
@@ -604,7 +629,7 @@ void Debugger::delete_breakpoint(uint64_t addr) {
     return;
   }
 
-  disable_breakpoint(&(bp_it->second));
+  disable_breakpoint(bp_it->second);
 
   breakpoints.erase(bp_it); 
 }
@@ -619,10 +644,13 @@ std::vector<Instruction> Debugger::disassemble(uint64_t addr, size_t n) { //disa
   }
  
   std::vector<Instruction> instructions;
+  std::string filename = elf->get_filename();
 
-  std::string filename = get_file_from_addr(addr);
+  if (!vmmap.empty()) {
+    filename = get_file_from_addr(addr);
+  }
+
   uint8_t *bytes;
-
  
   if (filename.empty()) {
     std::cout << "WARNING: disassembling section that is not a file" << std::endl;
@@ -693,6 +721,10 @@ std::vector<Instruction> Debugger::disassemble(std::string symbol) {
 ////////////////////
 
 uint64_t Debugger::get_reg(std::string reg) {
+  if (proc == 0 || WIFEXITED(status)) {
+    return 0;
+  }
+
   return regs->get_by_name(reg);
 }
 
@@ -774,12 +806,15 @@ void Debugger::print_history() const {
 }
 
 uint64_t Debugger::get_pc() const {
+  if (proc == 0 || WIFEXITED(status)) {
+    return 0;
+  }
   return regs->get_pc();
 }
 
 
 void Debugger::print_regs()  const {
-  if (WIFEXITED(status)) {
+  if (proc == 0 || WIFEXITED(status)) {
     return;
   }
 
@@ -788,6 +823,10 @@ void Debugger::print_regs()  const {
 }
 
 void Debugger::print_vmmap() const {
+  if (proc == 0 || WIFEXITED(status)) {
+    return;
+  }
+
   for (const auto& entry: vmmap) {
     std::cout << entry.str(arch) << std::endl;
   }
@@ -815,8 +854,13 @@ void Debugger::list_breakpoints()  const{
 
 void Debugger::print_symbols() const {
   for (auto& entry : elf_table) {
-    entry.second->print_symtab();
+    std::cout << "HELLO" << std::endl;
+    if (entry.second->get_filename() != elf->get_filename()) {
+      entry.second->print_symtab();
+    }
   }
+
+  elf->print_symtab();
 }
 
 void Debugger::print_sections() const {

@@ -72,14 +72,8 @@ bool Section::contains(uint64_t addr) const {
   return false;
 }
 
-Symbol::Symbol(uint64_t addr, uint32_t offset, uint32_t size, std::string name) : addr(addr), offset(offset), size(size), name(name) {}
-
-/* 
-std::string Symbol::str() {
-  std::stringstream ss;
-  ss << "0x" << std::hex << addr << "  " << size <<  "  " << name; 
-  return ss.str();
-}*/
+// TODO: check offset addr (something is not working
+Symbol::Symbol(uint64_t addr, uint32_t offset, uint32_t size, std::string name) : addr(addr), offset(addr), size(size), name(name) {}
 
 void Symbol::rebase(uint64_t base_addr) {
   addr = base_addr + offset;
