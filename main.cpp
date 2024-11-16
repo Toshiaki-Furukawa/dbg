@@ -232,6 +232,14 @@ int main(int argc, char *argv[]) {
         dbg.reset();
       }*/
       dbg.run();
+    } else if (cmd.cmd == "g" || cmd.cmd == "goto") {
+      if (cmd.args.size() == 2) {
+        uint32_t n = std::strtol(cmd.args[1].c_str(), NULL, 10);
+        std::cout << "trying to restore nr. " << n << std::endl;
+        
+        dbg.restore_state(n); 
+      }
+
     } else if (cmd.cmd == "log") {
       dbg.log_state(); 
     } else if (cmd.cmd == "b") {
