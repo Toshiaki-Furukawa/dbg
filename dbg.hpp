@@ -105,8 +105,8 @@ public:
 
 class Debugger {
 private:
-  const char *filename;
-  const ELF* elf;
+  std::string filename;
+  ELF* elf;
 
   //user_regs_struct regs;
   Registers *regs;
@@ -125,9 +125,9 @@ private:
 
   arch_t arch;
 
-  void enable_breakpoint(Breakpoint*);
+  void enable_breakpoint(Breakpoint&);
 
-  void disable_breakpoint(Breakpoint*); 
+  void disable_breakpoint(Breakpoint&); 
 
   int update_regs();
 
@@ -145,13 +145,20 @@ private:
 
   void write_bytes_to_memory(uint64_t, uint8_t*, uint32_t);
 
+  void load_elftable();
+  
+  void init_proc();
+
 
 public:
-  Debugger (const char *filename);
+  //Debugger (const char *filename);
+  Debugger (std::string filename);
 
   ~Debugger();
 
-  void reset();
+  void run();
+
+  //void reset();
 
   int cont();
 
@@ -175,7 +182,7 @@ public:
   
   uint64_t get_symbol_addr(std::string);
 
-  uint32_t get_symbol_size(std::string);
+  size_t get_symbol_size(std::string);
 
   uint8_t *get_bytes(uint64_t, size_t);
 

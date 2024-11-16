@@ -202,10 +202,8 @@ void ELF::rebase(uint64_t base_addr) {
   
 arch_t ELF::get_machine() const {
   return architecture;
-  //return machine;
 }
   
-//const char* ELF::get_filename() const {
 std::string ELF::get_filename() const {
   return filename;
 }

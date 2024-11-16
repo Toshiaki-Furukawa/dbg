@@ -222,15 +222,16 @@ int main(int argc, char *argv[]) {
         std::cout << "error occured. Aborting" << std::endl;
         exit(-1);
       }
-    } else if (cmd.cmd == "r") {
-      if (cmd.args.size() == 2) {
+    } else if (cmd.cmd == "r" || cmd.cmd == "run") {
+      /*if (cmd.args.size() == 2) {
         uint32_t n = std::strtol(cmd.args[1].c_str(), NULL, 10);
         std::cout << "trying to restore nr. " << n << std::endl;
         
         dbg.restore_state(n); 
       } else {
         dbg.reset();
-      }
+      }*/
+      dbg.run();
     } else if (cmd.cmd == "log") {
       dbg.log_state(); 
     } else if (cmd.cmd == "b") {
