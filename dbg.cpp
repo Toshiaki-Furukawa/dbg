@@ -457,6 +457,23 @@ int Debugger::cont() {
     return 0;
   }
 
+  // step over breakpoint if we are at  correct posiiton
+  regs->peek(proc);
+  if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP) {
+    auto pc = regs->get_pc();
+
+    auto bp_it = breakpoints.find(pc);
+    if (bp_it != breakpoints.end()) {
+      single_step();
+    }
+  }
+
+  regs->peek(proc);
+
+  for (auto& bp_it : breakpoints) {
+    enable_breakpoint(bp_it.second);
+  }
+
   ptrace(PTRACE_CONT, proc, NULL, NULL);
 
   waitpid(proc, &status, 0);
@@ -472,8 +489,7 @@ int Debugger::cont() {
     return -1;
   }
 
-  //regs->peek(proc);
-
+  // disable breakpoint
   if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP) {
     regs->peek(proc);
     auto pc = regs->get_pc();
@@ -482,13 +498,8 @@ int Debugger::cont() {
     if (bp_it != breakpoints.end()) {
       disable_breakpoint(bp_it->second);
 
-      regs->set_pc(pc - 1);
+      regs->set_pc(pc-1);
       regs->poke(proc);
-
-      single_step(); 
-
-      enable_breakpoint(bp_it->second);
-      regs->peek(proc);
     }
  
     std::cout << "stopped at: 0x" << regs->get_pc() << std::endl;
@@ -497,7 +508,7 @@ int Debugger::cont() {
     return 1; 
   }  else {
     return -1;
-  }  
+  }
 }
 
 void Debugger::single_step() {
@@ -577,10 +588,12 @@ void Debugger::restore_state(uint32_t n) {
     }
   }
 
-  
+  // restore breakpoints 
   regs->peek(proc);
   for (auto& bp: breakpoints) {
-    enable_breakpoint(bp.second);
+    if (regs->get_pc() != bp.first) {
+      enable_breakpoint(bp.second);
+    }
   }
  
   std::cout << "successfully restored state" << std::endl;
@@ -682,14 +695,15 @@ std::vector<Instruction> Debugger::disassemble(uint64_t addr, size_t n) { //disa
   for (auto& instr : instructions) {
     instr.set_prefix("   ");
 
-    if (instr.get_addr() == regs->get_pc()) {
-      instr.set_prefix(" > ");
-    }
-
     auto bp_it = breakpoints.find(instr.get_addr());
     if (bp_it != breakpoints.end()) {
       instr.set_prefix(" * ");
     }
+
+    if (instr.get_addr() == regs->get_pc() && (!WIFEXITED(status) || proc == 0)) {
+      instr.set_prefix(" > ");
+    }
+
   } 
 
   return instructions;
