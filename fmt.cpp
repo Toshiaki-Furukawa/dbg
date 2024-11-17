@@ -82,6 +82,7 @@ std::string fmt::op_intel(std::string op_str) {
     idx++;
   }
 
+  ss << fmt::endc;
   return ss.str();
 }
 
