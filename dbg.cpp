@@ -22,6 +22,7 @@
 #include "dbg.hpp"
 #include "disass.hpp"
 #include "fmt.hpp"
+#include "tracer.hpp"
 
 bool is_elf(std::string file) {
   std::ifstream file_content(file, std::ios::binary | std::ios::ate);
