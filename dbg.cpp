@@ -13,6 +13,7 @@
 #include <sys/uio.h>
 
 #include <cstdint>
+#include <cstring>
 #include <map>
 
 #include "elf.hpp"
@@ -516,13 +517,27 @@ void Debugger::single_step() {
     return;
   }
 
+  // TODO
+  regs->peek(proc);
+
+  // skip breakpoint if set at current position
+  auto bp_it = breakpoints.find(regs->get_pc());
+  if (bp_it != breakpoints.end()) {
+    disable_breakpoint(bp_it->second);
+  }
+
   if (ptrace(PTRACE_SINGLESTEP, proc, NULL, NULL)) {
     std::cout << "single step failed" << std::endl;
     return;
   }
 
   waitpid(proc, &status, 0);
+  if (bp_it != breakpoints.end()) {
+    enable_breakpoint(bp_it->second);
+  }
+
   regs->peek(proc);
+
 }
 
 void Debugger::log_state() {
