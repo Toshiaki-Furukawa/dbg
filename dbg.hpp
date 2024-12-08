@@ -18,90 +18,7 @@
 #include "elf.hpp"
 #include "elftypes.hpp"
 #include "fmt.hpp"
-
-
-struct memory_chunk {
-  uint64_t start;
-  uint32_t size;
-  uint8_t* content;
-
-} typedef chunk_t;
-
-struct program_state {
-  uint64_t addr;
-  
-  chunk_t heap;
-  chunk_t stack; 
-
-  Registers regs;
-} typedef state_t;
-
-class ExecHistory {
-private:
-  std::vector<state_t> state_log;
-
-public:
-  ExecHistory() {
-    state_log = {};
-  }
-
-  void log(state_t state) {
-    state_log.emplace_back(state); 
-  }
-
-  bool is_logged(uint64_t addr) {
-    for (const auto& state : state_log) {
-      if (state.addr == addr) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  chunk_t* get_stack(uint32_t n) {
-    if (n >= state_log.size()) {
-      return nullptr;
-    }
-
-    if (state_log[n].stack.start == 0x0) {
-      return nullptr;
-    }
-    return &(state_log[n].stack);
-  }
-
-  chunk_t* get_heap(uint32_t n) {
-    if (n >= state_log.size()) {
-      return nullptr;
-    }
-
-    if (state_log[n].heap.start == 0x0) {
-      return nullptr;
-    }
-    return &(state_log[n].heap);
-  }
-
-  Registers* get_registers(uint32_t n) {
-    std::cout << "HI" << std::endl;
-    if (n >= state_log.size()) {
-      std::cout << "HI2" << std::endl;
-      return nullptr;
-    }
-
-    return &(state_log[n].regs);
-  }
-
-  std::string str() const {
-    std::stringstream ss;
-    int idx = 0;
-    for (const auto& state : state_log) {
-      ss << "Checkpoint nr. " << idx << " at PC: " << fmt::addr_64(state.addr) <<  std::endl;
-      ss << "   heap: " << fmt::addr_64(state.heap.start) << std::endl;
-      ss << "   stack: " << fmt::addr_64(state.stack.start) << std::endl << std::endl;
-    } 
-    return ss.str();   
-  }
-};
+#include "tracer.hpp"
 
 class Debugger {
 private:
@@ -156,6 +73,8 @@ public:
   void run();
 
   //void reset();
+
+  state_t get_state();
 
   int cont();
 

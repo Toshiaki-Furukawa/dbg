@@ -11,6 +11,8 @@
 #include "fmt.hpp"
 
 
+Registers::Registers() {}
+
 Registers::Registers(arch_t arch) : arch(arch)  { }
 
 /* regs struct
