@@ -4,6 +4,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <memory>
 
 #include "dbgtypes.hpp"
 
@@ -23,22 +24,27 @@ struct program_state {
   Registers regs;
 } typedef state_t;
 
+struct change {
+  std::shared_ptr<state_t> state;
+  std::vector<change*> children;
+  uint32_t id;
+} typedef cnode_t;
+
 class ExecHistory {
 private:
-  std::vector<state_t> state_log;
+  cnode_t ctree_root;
+  cnode_t* current_state;
 
 public:
   ExecHistory();
 
-  void log(state_t state);
+  void set_root(state_t&);
 
-  bool is_logged(uint64_t);
+  void log(state_t&);
 
-  chunk_t* get_stack(uint32_t);
+  void log_goto(state_t&);
 
-  chunk_t* get_heap(uint32_t);
-
-  Registers* get_registers(uint32_t);
+  state_t* get_state_by_id(uint32_t);
 
   std::string str() const;
 };

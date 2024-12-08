@@ -44,6 +44,8 @@ private:
   struct user_regs_struct pack_i386();
 
 public:
+  Registers();
+
   Registers(arch_t arch);
 
   void reset_proc(pid_t pid);

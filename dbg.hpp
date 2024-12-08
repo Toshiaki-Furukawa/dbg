@@ -74,6 +74,8 @@ public:
 
   //void reset();
 
+  state_t get_state();
+
   int cont();
 
   void single_step();

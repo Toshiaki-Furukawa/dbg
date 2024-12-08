@@ -3,68 +3,88 @@
 #include <sstream>
 #include <cstdint>
 #include <iostream>
+#include <memory>
+#include <deque>
 
 #include "dbgtypes.hpp"
 #include "tracer.hpp"
 #include "fmt.hpp"
 
+
 ExecHistory::ExecHistory() {
-  state_log = {};
+  //state_log = {};
+  //ctree_root = nullptr; 
+  current_state = nullptr;
 }
 
-void ExecHistory::log(state_t state) {
-  state_log.emplace_back(state); 
+void ExecHistory::set_root(state_t& state) {
+  //if (current_state == nullptr) {
+  ctree_root.state = std::make_shared<state_t> (state);
+  ctree_root.id = 0;
+  ctree_root.children = {};
+  current_state = &ctree_root; //std::make_shared<cnode_t> (ctree_root);
+  //}
+  return;
 }
 
-bool ExecHistory::is_logged(uint64_t addr) {
-  for (const auto& state : state_log) {
-    if (state.addr == addr) {
-      return true;
+void ExecHistory::log(state_t& state) {
+  cnode_t* node = new cnode_t; 
+  node->state = std::make_shared<state_t> (state);
+  node->id = current_state->id;
+  node->children = {};
+
+  current_state->children.emplace_back(node);
+}
+
+void ExecHistory::log_goto(state_t& state) {
+  if (current_state == nullptr) {
+    return;
+  }
+
+  cnode_t *node = new cnode_t; 
+  node->state = std::make_shared<state_t> (state);
+  std::cout << "hi" << std::endl;
+  node->id = current_state->id + 1;
+  node->children = {};
+
+  current_state->children.emplace_back(node);
+  std::cout << "current_state: " << current_state->children.size() << std::endl;
+  current_state = node; // goto point
+}
+
+state_t* ExecHistory::get_state_by_id(uint32_t n) {
+  // bfs for id
+  std::deque<const cnode_t*> queue; 
+
+  queue.push_back(&ctree_root);
+  std::vector<uint32_t> known_nodes = {ctree_root.id};
+
+  while (!queue.empty()) {
+    auto current_node = queue.front();
+    queue.pop_front();
+    if (current_node->id == n) {
+      return current_node->state.get();
     }
+    
+    queue.insert(queue.end(), current_node->children.begin(), current_node->children.end());
   }
-
-  return false;
+  return nullptr;
 }
 
-chunk_t* ExecHistory::get_stack(uint32_t n) {
-  if (n >= state_log.size()) {
-    return nullptr;
-  }
-
-  if (state_log[n].stack.start == 0x0) {
-    return nullptr;
-  }
-  return &(state_log[n].stack);
-}
-
-chunk_t* ExecHistory::get_heap(uint32_t n) {
-  if (n >= state_log.size()) {
-    return nullptr;
-  }
-
-  if (state_log[n].heap.start == 0x0) {
-    return nullptr;
-  }
-  return &(state_log[n].heap);
-}
-
-Registers* ExecHistory::get_registers(uint32_t n) {
-  std::cout << "HI" << std::endl;
-  if (n >= state_log.size()) {
-    std::cout << "HI2" << std::endl;
-    return nullptr;
-  }
-
-  return &(state_log[n].regs);
-}
 
 std::string ExecHistory::str() const {
   std::stringstream ss;
-  int idx = 0;
-  for (const auto& state : state_log) {
-    ss << "Checkpoint nr. " << idx << " at PC: " << fmt::addr_64(state.addr) <<  std::endl;
-    ss << "   heap: " << fmt::addr_64(state.heap.start) << std::endl;
-    ss << "   stack: " << fmt::addr_64(state.stack.start) << std::endl << std::endl;
-  } 
+
+  std::deque<const cnode_t*> queue;
+  queue.push_back(&ctree_root);
+  std::vector<uint32_t> known_nodes = {ctree_root.id};
+
+  while (!queue.empty()) {
+    auto current_node = queue.front();
+    queue.pop_front();
+    ss << "Checkpoint nr. " << current_node->id << " at PC: " << fmt::addr_64(current_node->state->addr) <<  std::endl;
+    queue.insert(queue.end(), current_node->children.begin(), current_node->children.end());
+  }
+
   return ss.str();   
 }

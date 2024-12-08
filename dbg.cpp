@@ -7,6 +7,7 @@
 #include <vector>
 #include <signal.h>
 #include <filesystem>
+#include <memory>
 
 #include <sstream>
 #include <fstream>
@@ -397,14 +398,10 @@ void Debugger::init_proc() {
       std::cout << "[ERROR] architecture not valid" << std::endl;
       return;
     }
-    //auto orig_esp = regs->get_by_name("esp");
-    //auto orig_ebx = regs->get_by_name("ebx");
-    //auto orig_eax = regs->get_by_name("eax");
 
-    //regs->set_by_name("ebx", 0x1);
     regs->set_by_name(di, 0x1);
     regs->set_by_name(ax, malloc_addr);
-    //regs->set_by_name("eax", malloc_addr);
+
     regs->poke(proc);
 
     ptrace(PTRACE_CONT, proc, NULL, NULL);
@@ -418,9 +415,6 @@ void Debugger::init_proc() {
 
       regs->set_pc(start_addr);
 
-      //regs->set_by_name("ebx", orig_ebx);
-      //regs->set_by_name("esp", orig_esp);
-      //regs->set_by_name("eax", orig_eax);
       regs->set_by_name(di, orig_di);
       regs->set_by_name(sp, orig_sp);
       regs->set_by_name(ax, orig_ax);
@@ -448,7 +442,12 @@ void Debugger::run() {
 
   for (auto& bp: breakpoints) {
     enable_breakpoint(bp.second);
-  } 
+  }
+
+  read_vmmap();
+
+  auto state = get_state();
+  program_history.set_root(state);
 
   cont();
 }
@@ -465,7 +464,7 @@ int Debugger::cont() {
     auto pc = regs->get_pc();
 
     auto bp_it = breakpoints.find(pc);
-    if (bp_it != breakpoints.end()) {
+    if (bp_it != breakpoints.end()) { 
       single_step();
     }
   }
@@ -502,8 +501,10 @@ int Debugger::cont() {
 
       regs->set_pc(pc-1);
       regs->poke(proc);
+      auto state = get_state();
+      program_history.log_goto(state);
     }
- 
+
     std::cout << "stopped at: 0x" << regs->get_pc() << std::endl;
     std::cout << "bp at: 0x" << regs->get_bp() << std::endl;
     std::cout << "sp at: 0x" << regs->get_sp() << std::endl;
@@ -537,15 +538,43 @@ void Debugger::single_step() {
     enable_breakpoint(bp_it->second);
   }
 
-  regs->peek(proc);
 
+  regs->peek(proc);
+}
+
+state_t Debugger::get_state() {
+  state_t state = {regs->get_pc(), {0x0, 0x0, 0x0}, {0x0, 0x0, 0x0}, *regs};
+
+  for (const auto& vmmap_entry : vmmap ) {
+    if (vmmap_entry.get_file() == "[heap]") {
+      //std::cout << "found heap" << std::endl;
+      state.heap.start = vmmap_entry.get_start();
+      state.heap.size = vmmap_entry.get_size();
+
+      state.heap.content = get_bytes_from_memory(state.heap.start, state.heap.size);
+    } else if (vmmap_entry.get_file() == "[stack]") {
+      //std::cout << "found stack" << std::endl;
+      state.stack.start = vmmap_entry.get_start();
+      state.stack.size = vmmap_entry.get_size();
+
+      state.stack.content = get_bytes_from_memory(state.stack.start, state.stack.size);
+    }
+  }
+  if (state.stack.start == 0x0) {
+    std::cout << "[Warning] Stack could not be found" << std::endl;
+  }
+  if (state.heap.start == 0x0) {
+    std::cout << "[Warning] Heap could not be found" << std::endl;
+  }
+
+  return state;
 }
 
 void Debugger::log_state() {
   if (proc == 0 || WIFEXITED(status)) {
     return;
   }
-
+  /*
   state_t state = {regs->get_pc(), {0x0, 0x0, 0x0}, {0x0, 0x0, 0x0}, *regs};
 
   for (const auto& vmmap_entry : vmmap ) {
@@ -562,9 +591,12 @@ void Debugger::log_state() {
 
       state.stack.content = get_bytes_from_memory(state.stack.start, state.stack.size);
     }
-  }
+  }*/
+  auto state = get_state();
 
-  program_history.log(state);
+  program_history.log_goto(state);
+
+  //program_history.log_goto(state);
 }
 
 void Debugger::restore_state(uint32_t n) {
@@ -577,30 +609,26 @@ void Debugger::restore_state(uint32_t n) {
     init_proc(); 
   }
 
-  auto state_regs = program_history.get_registers(n);
+  // TODO: handle non existend stack/heap
+  //auto state_regs = program_history.get_registers(n);
+  auto logged_state = program_history.get_state_by_id(n);
 
-  if (state_regs == nullptr) {
+  if (logged_state == nullptr) {
     std::cout << "could not find state" << std::endl;
     return;
   }
 
-  state_regs->poke(proc);
+  logged_state->regs.poke(proc);
+  //regs->peek(proc);
 
-  auto heap = program_history.get_heap(n);
-  if (heap == nullptr) {
-    std::cout << "[Warning] No heap info stored" << std::endl;
-  }
-
-  auto stack = program_history.get_stack(n);
-  if (stack == nullptr) {
-    std::cout << "[Warning] No stack info stored" << std::endl;
-  }
+  auto heap = logged_state->heap;
+  auto stack = logged_state->stack;
  
   for (const auto& vmmap_entry : vmmap) {
-    if (vmmap_entry.get_file() == "[heap]" && heap != nullptr) {
-      write_bytes_to_memory(heap->start, heap->content, heap->size);
-    } else if (vmmap_entry.get_file() == "[stack]" && heap != nullptr) {
-      write_bytes_to_memory(stack->start, stack->content, stack->size);
+    if (vmmap_entry.get_file() == "[heap]" ) { //&& heap != nullptr) {
+      write_bytes_to_memory(heap.start, heap.content, heap.size);
+    } else if (vmmap_entry.get_file() == "[stack]") { // { && heap != nullptr) {
+      write_bytes_to_memory(stack.start, stack.content, stack.size);
     }
   }
 
