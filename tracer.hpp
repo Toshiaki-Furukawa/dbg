@@ -90,6 +90,8 @@ public:
   int restore_state_by_id(uint32_t, state_t&);
 
   void get_path(ChangeNode*, std::vector<uint32_t>&, uint32_t, uint32_t) const;
+  
+  void subtree_str(ChangeNode*, std::stringstream&, std::string, uint32_t) const;
 
   std::string str() const;
 };

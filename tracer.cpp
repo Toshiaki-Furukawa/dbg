@@ -224,6 +224,37 @@ int ExecHistory::restore_state_by_id(uint32_t n, state_t& state) {
 }
 
 
+void ExecHistory::subtree_str(ChangeNode* start, std::stringstream& out, std::string prefix, uint32_t n) const {
+  std::deque< std::pair<ChangeNode*, std::string> > branches;
+
+  
+  out << prefix;
+  if (prefix != "") {
+    out << "\\";
+  }
+
+  std::stringstream current_prefix;
+  current_prefix << prefix; 
+
+  while (start != nullptr) {
+    out << start->get_id() << "-";
+
+    if (start->branch != nullptr) {
+      branches.emplace_back(std::pair<ChangeNode*, std::string> (start->branch, current_prefix.str()));
+    }
+
+    current_prefix << "  ";
+    start = start->main;
+  }
+
+  out << "     branch: " << n << std::endl;
+  while (!branches.empty()) {
+    auto next = branches.front();
+    branches.pop_front();
+    subtree_str(next.first, out, next.second, n);
+  }
+}
+
 void ExecHistory::get_path(ChangeNode* start, std::vector<uint32_t>& ids, uint32_t n, uint32_t branch_count) const {
   if (start->main == nullptr) {
     //path << start->get_id() << "-    branch: " << n;
@@ -232,6 +263,7 @@ void ExecHistory::get_path(ChangeNode* start, std::vector<uint32_t>& ids, uint32
   }
 
   //path << start->get_id() << "-";
+  std::cout << "branch: " << n <<  " at id: " <<  start->get_id() << std::endl;
   ids.emplace_back(start->get_id());
 
   if (start->branch == nullptr) {
@@ -252,17 +284,35 @@ std::string ExecHistory::str() const {
   }
 
 
+  subtree_str(root_node, ss,  "", 0);
+  /*
+  bool printed_ids[tree_size];
   std::vector<uint32_t> path;
+
   for (uint32_t i = 0; i <= branch_numbers; i++) {
     path.clear();
 
-    std::cout << i << std::endl;
+    //std::cout << i << std::endl;
     get_path(root_node, path, i, 0);
+    
 
-    for (const auto& id : path) {
-      ss << id << "-";
-    } 
+    uint32_t idx = 0;
+    while (printed_ids[path[idx]]) {
+      ss << "  "; 
+      idx += 1;
+    }
+
+    if (path.size() <= idx) {
+      continue;
+    }
+    printed_ids[path[idx]] = true;
+    ss << "\\";
+
+    for (uint32_t id = idx; id < path.size(); id++) {
+        ss << path[id] << "-";
+        printed_ids[path[id]] = true;
+    }
     ss << "  branch: " << i << std::endl;
-  }
+  }*/
   return ss.str();   
 }
