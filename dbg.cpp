@@ -574,29 +574,10 @@ void Debugger::log_state() {
   if (proc == 0 || WIFEXITED(status)) {
     return;
   }
-  /*
-  state_t state = {regs->get_pc(), {0x0, 0x0, 0x0}, {0x0, 0x0, 0x0}, *regs};
 
-  for (const auto& vmmap_entry : vmmap ) {
-    if (vmmap_entry.get_file() == "[heap]") {
-      std::cout << "found heap" << std::endl;
-      state.heap.start = vmmap_entry.get_start();
-      state.heap.size = vmmap_entry.get_size();
-
-      state.heap.content = get_bytes_from_memory(state.heap.start, state.heap.size);
-    } else if (vmmap_entry.get_file() == "[stack]") {
-      std::cout << "found stack" << std::endl;
-      state.stack.start = vmmap_entry.get_start();
-      state.stack.size = vmmap_entry.get_size();
-
-      state.stack.content = get_bytes_from_memory(state.stack.start, state.stack.size);
-    }
-  }*/
   auto state = get_state();
 
   program_history.log_goto(state);
-
-  //program_history.log_goto(state);
 }
 
 void Debugger::restore_state(uint32_t n) {
@@ -611,18 +592,19 @@ void Debugger::restore_state(uint32_t n) {
 
   // TODO: handle non existend stack/heap
   //auto state_regs = program_history.get_registers(n);
-  auto logged_state = program_history.get_state_by_id(n);
+  read_vmmap();
+  auto logged_state = get_state();
+  auto status =  program_history.restore_state_by_id(n, logged_state);
 
-  if (logged_state == nullptr) {
+  if (status == 0) {
     std::cout << "could not find state" << std::endl;
     return;
   }
 
-  logged_state->regs.poke(proc);
-  //regs->peek(proc);
+  logged_state.regs.poke(proc);
 
-  auto heap = logged_state->heap;
-  auto stack = logged_state->stack;
+  auto heap = logged_state.heap;
+  auto stack = logged_state.stack;
  
   for (const auto& vmmap_entry : vmmap) {
     if (vmmap_entry.get_file() == "[heap]" ) { //&& heap != nullptr) {
@@ -639,7 +621,8 @@ void Debugger::restore_state(uint32_t n) {
       enable_breakpoint(bp.second);
     }
   }
- 
+
+  read_vmmap();
   std::cout << "successfully restored state" << std::endl;
   return;
 }

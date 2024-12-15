@@ -2,38 +2,176 @@
 #include <string>
 #include <sstream>
 #include <cstdint>
+#include <cstring>
 #include <iostream>
 #include <memory>
 #include <deque>
+#include <unordered_map>
 
 #include "dbgtypes.hpp"
 #include "tracer.hpp"
 #include "fmt.hpp"
 
+ChangeNode::ChangeNode(state_t& state) {
+  chunk_t stack = state.stack;
+  chunk_t heap = state.heap;
+ 
+  id = 0;
+  addr = state.addr;
+
+  root_heap_start = heap.start;
+  root_heap_size = heap.size;
+  root_heap_content = new uint64_t[heap.size/sizeof(uint64_t)];
+
+  std::memcpy(root_heap_content, heap.content, heap.size/sizeof(uint64_t));
+
+  root_stack_start = stack.start;
+  root_stack_size = stack.size;
+  root_stack_content = new uint64_t[stack.size/sizeof(uint64_t)];
+
+  std::memcpy(root_stack_content, stack.content, stack.size/sizeof(uint64_t));
+
+  stack_changes = {};
+  heap_changes = {};
+  parent = nullptr;
+  //children = {};
+  main = nullptr;
+  branch = nullptr;
+
+  regs = state.regs;
+}
+
+ChangeNode::ChangeNode(ChangeNode* parent, state_t& state) {
+  chunk_t stack = state.stack;
+  chunk_t heap = state.heap;
+ 
+  this->parent = parent;
+  root_heap_size = parent->root_heap_size;
+  root_heap_start = parent->root_heap_start;
+  root_heap_content = parent->root_heap_content;
+
+  root_stack_size = parent->root_stack_size;
+  root_stack_start = parent->root_stack_start;
+  root_stack_content = parent->root_stack_content;
+
+  id = parent->get_id() + 1;
+  regs = state.regs;
+  addr = state.addr;
+  //children = {};
+  main = nullptr;
+  branch = nullptr;
+
+  stack_changes = {};
+  heap_changes = {};
+
+  if (root_heap_size != heap.size) {
+    std::cout << "[Warning] Heap sizes do not match" << std::endl;
+  }
+  if (root_stack_size != stack.size) {
+    std::cout << "[Warning] Stack sizes do not match" << std::endl;
+  }
+
+  size_t heap_words_size =(heap.size / sizeof(uint64_t))*sizeof(uint64_t);
+  size_t stack_words_size =(stack.size / sizeof(uint64_t))*sizeof(uint64_t); 
+  uint64_t heap_words[heap.size/sizeof(uint64_t)];
+  uint64_t stack_words[stack.size/sizeof(uint64_t)];
+
+  std::memcpy(heap_words, heap.content, heap_words_size);
+  std::memcpy(stack_words, stack.content, stack_words_size);
+
+  for (size_t i = 0; i < heap.size/sizeof(uint64_t); i++) {
+    heap_changes[i] = heap_words[i];
+  }
+
+  for (size_t i = 0; i < heap.size/sizeof(uint64_t); i++) {
+    stack_changes[i] = stack_words[i];
+  }
+
+  //parent->addChild(this);
+  parent->main = this;
+}
+
+ChangeNode::ChangeNode(ChangeNode* origin) {
+  stack_changes = origin->stack_changes;
+  heap_changes = origin->heap_changes;
+
+  parent = nullptr;
+  regs = origin->regs;
+
+  addr = origin->get_addr();
+  id = 0;
+  root_heap_start = origin->root_heap_start;
+  root_heap_size = origin->root_heap_size;
+  root_heap_content =  origin->root_heap_content;
+
+  root_stack_start = origin->root_stack_start;
+  root_stack_size = origin->root_stack_size;
+  root_stack_content =  origin->root_stack_content;
+
+  main = nullptr;
+  branch = nullptr;
+}
+
+void ChangeNode::make_branch(uint32_t id) {
+  this->branch = new ChangeNode(this);
+  this->branch->set_parent(this);
+
+  this->branch->set_id(id);
+
+}
+
+int ChangeNode::restore_state(state_t& state) {
+  for (const auto& stack_change : stack_changes) {
+    std::memcpy(state.stack.content + stack_change.first * sizeof(uint64_t), &(stack_change.second), sizeof(uint64_t)); 
+  }
+
+  for (const auto& heap_change : heap_changes) {
+    std::memcpy(state.heap.content + heap_change.first * sizeof(uint64_t), &(heap_change.second), sizeof(uint64_t)); 
+  }
+
+  state.addr = this->get_addr();
+  state.regs = this->regs;
+
+  return 1;
+}
+
+void ChangeNode::set_parent(ChangeNode* parent) {
+  this->parent = parent;
+}
+
+void ChangeNode::set_main(ChangeNode* main) {
+  this->main = main;
+}
+
+void ChangeNode::set_branch(ChangeNode* branch) {
+  this->branch = branch;
+}
+
+void ChangeNode::set_id(uint32_t id) {
+  this->id = id;
+}
+
+uint32_t ChangeNode::get_id() {
+  return id;
+}
+
+uint64_t ChangeNode::get_addr() {
+  return regs.get_pc(); 
+}
+
 
 ExecHistory::ExecHistory() {
-  //state_log = {};
-  //ctree_root = nullptr; 
+  tree_size = 0;
+  root_node = nullptr;
   current_state = nullptr;
 }
 
 void ExecHistory::set_root(state_t& state) {
-  //if (current_state == nullptr) {
-  ctree_root.state = std::make_shared<state_t> (state);
-  ctree_root.id = 0;
-  ctree_root.children = {};
-  current_state = &ctree_root; //std::make_shared<cnode_t> (ctree_root);
-  //}
+  root_node = new ChangeNode(state);
+  current_state = root_node;
+
+  current_state->set_id(tree_size);
   return;
-}
-
-void ExecHistory::log(state_t& state) {
-  cnode_t* node = new cnode_t; 
-  node->state = std::make_shared<state_t> (state);
-  node->id = current_state->id;
-  node->children = {};
-
-  current_state->children.emplace_back(node);
 }
 
 void ExecHistory::log_goto(state_t& state) {
@@ -41,50 +179,90 @@ void ExecHistory::log_goto(state_t& state) {
     return;
   }
 
-  cnode_t *node = new cnode_t; 
-  node->state = std::make_shared<state_t> (state);
-  std::cout << "hi" << std::endl;
-  node->id = current_state->id + 1;
-  node->children = {};
+  if (current_state->main != nullptr ) {
+    if (current_state->branch == nullptr) {
+      branch_numbers++;
+      tree_size++;
+      current_state->make_branch(tree_size);
+    }
+    current_state = current_state->branch;
+    return log_goto(state);
+  }
 
-  current_state->children.emplace_back(node);
-  std::cout << "current_state: " << current_state->children.size() << std::endl;
-  current_state = node; // goto point
+  ChangeNode* next_node = new ChangeNode(current_state, state);
+  current_state = next_node;
+  tree_size++;
+  current_state->set_id(tree_size);
 }
 
-state_t* ExecHistory::get_state_by_id(uint32_t n) {
+int ExecHistory::restore_state_by_id(uint32_t n, state_t& state) {
   // bfs for id
-  std::deque<const cnode_t*> queue; 
+  std::deque<ChangeNode*> queue; 
 
-  queue.push_back(&ctree_root);
-  std::vector<uint32_t> known_nodes = {ctree_root.id};
+  queue.push_back(root_node);
+  std::vector<uint32_t> known_nodes = {root_node->get_id()};
+
 
   while (!queue.empty()) {
     auto current_node = queue.front();
     queue.pop_front();
-    if (current_node->id == n) {
-      return current_node->state.get();
+    if (current_node->get_id() == n) {
+      this->current_state = current_node;
+      return current_node->restore_state(state);
     }
-    
-    queue.insert(queue.end(), current_node->children.begin(), current_node->children.end());
+
+    if (current_node->main != nullptr) {
+      queue.push_back(current_node->main); 
+    }
+
+    if (current_node->branch != nullptr) {
+      queue.push_back(current_node->branch); 
+    }
   }
-  return nullptr;
+
+  return 0;
 }
 
+
+void ExecHistory::get_path(ChangeNode* start, std::vector<uint32_t>& ids, uint32_t n, uint32_t branch_count) const {
+  if (start->main == nullptr) {
+    //path << start->get_id() << "-    branch: " << n;
+    ids.emplace_back(start->get_id());
+    return;
+  }
+
+  //path << start->get_id() << "-";
+  ids.emplace_back(start->get_id());
+
+  if (start->branch == nullptr) {
+    return get_path(start->main,ids, n, branch_count); 
+  } else {
+    if (n & (1 << branch_count)) {
+     return get_path(start->branch, ids, n, branch_count+1); 
+    }
+
+    return get_path(start->main, ids, n, branch_count+1); 
+  }
+}
 
 std::string ExecHistory::str() const {
   std::stringstream ss;
-
-  std::deque<const cnode_t*> queue;
-  queue.push_back(&ctree_root);
-  std::vector<uint32_t> known_nodes = {ctree_root.id};
-
-  while (!queue.empty()) {
-    auto current_node = queue.front();
-    queue.pop_front();
-    ss << "Checkpoint nr. " << current_node->id << " at PC: " << fmt::addr_64(current_node->state->addr) <<  std::endl;
-    queue.insert(queue.end(), current_node->children.begin(), current_node->children.end());
+  if (root_node == nullptr) {
+    return ss.str();
   }
 
+
+  std::vector<uint32_t> path;
+  for (uint32_t i = 0; i <= branch_numbers; i++) {
+    path.clear();
+
+    std::cout << i << std::endl;
+    get_path(root_node, path, i, 0);
+
+    for (const auto& id : path) {
+      ss << id << "-";
+    } 
+    ss << "  branch: " << i << std::endl;
+  }
   return ss.str();   
 }
