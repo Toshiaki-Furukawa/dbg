@@ -80,15 +80,20 @@ ChangeNode::ChangeNode(ChangeNode* parent, state_t& state) {
   std::memcpy(stack_words, stack.content, stack_words_size);
 
   for (size_t i = 0; i < heap.size/sizeof(uint64_t); i++) {
-    heap_changes[i] = heap_words[i];
+    if (root_heap_content[i] != heap_words[i]) {
+      heap_changes[i] = heap_words[i];
+    }
   }
 
   for (size_t i = 0; i < heap.size/sizeof(uint64_t); i++) {
-    stack_changes[i] = stack_words[i];
+    if (root_stack_content[i] != stack_words[i]) {
+      stack_changes[i] = stack_words[i];
+    }
   }
 
   //parent->addChild(this);
   parent->main = this;
+  branch_id = parent->branch_id;
 }
 
 ChangeNode::ChangeNode(ChangeNode* origin) {
@@ -117,7 +122,7 @@ void ChangeNode::make_branch(uint32_t id) {
   this->branch->set_parent(this);
 
   this->branch->set_id(id);
-
+  this->branch->set_branch_id(branch_id+1);
 }
 
 int ChangeNode::restore_state(state_t& state) {
@@ -133,6 +138,10 @@ int ChangeNode::restore_state(state_t& state) {
   state.regs = this->regs;
 
   return 1;
+}
+
+void ChangeNode::set_branch_id(uint32_t id) {
+  this->branch_id = id;
 }
 
 void ChangeNode::set_parent(ChangeNode* parent) {
@@ -155,9 +164,14 @@ uint32_t ChangeNode::get_id() {
   return id;
 }
 
+uint32_t ChangeNode::get_branch_id() {
+  return branch_id;
+}
+
 uint64_t ChangeNode::get_addr() {
   return regs.get_pc(); 
 }
+
 
 
 ExecHistory::ExecHistory() {
@@ -184,6 +198,8 @@ void ExecHistory::log_goto(state_t& state) {
       branch_numbers++;
       tree_size++;
       current_state->make_branch(tree_size);
+
+      color_tree(root_node, 0);
     }
     current_state = current_state->branch;
     return log_goto(state);
@@ -224,10 +240,31 @@ int ExecHistory::restore_state_by_id(uint32_t n, state_t& state) {
 }
 
 
-void ExecHistory::subtree_str(ChangeNode* start, std::stringstream& out, std::string prefix, uint32_t n) const {
-  std::deque< std::pair<ChangeNode*, std::string> > branches;
+uint32_t ExecHistory::color_tree(ChangeNode* start, uint32_t n) {
+  // skip to end;
+  ChangeNode* current_node = start;
+  while (current_node->main != nullptr) {
+    current_node->set_branch_id(n);
+    current_node = current_node->main;
+  }
 
-  
+  current_node->set_branch_id(n);
+
+  while (current_node != start) {
+    if (current_node->branch != nullptr) {
+      n = color_tree(current_node->branch, n+1);
+    }
+    current_node = current_node->parent;
+  }
+
+  return n;
+}
+
+void ExecHistory::subtree_str(ChangeNode* start, std::stringstream& out, std::string prefix) const {
+  if (start == nullptr) {
+    return;
+  }
+  std::deque< std::pair<ChangeNode*, std::string> > branches;
   out << prefix;
   if (prefix != "") {
     out << "\\";
@@ -236,6 +273,7 @@ void ExecHistory::subtree_str(ChangeNode* start, std::stringstream& out, std::st
   std::stringstream current_prefix;
   current_prefix << prefix; 
 
+  uint32_t n = start->get_branch_id();
   while (start != nullptr) {
     out << start->get_id() << "-";
 
@@ -248,10 +286,14 @@ void ExecHistory::subtree_str(ChangeNode* start, std::stringstream& out, std::st
   }
 
   out << "     branch: " << n << std::endl;
+
+  int i = 0;
   while (!branches.empty()) {
     auto next = branches.front();
     branches.pop_front();
-    subtree_str(next.first, out, next.second, n);
+
+    subtree_str(next.first, out, next.second);
+    i++;
   }
 }
 
@@ -284,7 +326,7 @@ std::string ExecHistory::str() const {
   }
 
 
-  subtree_str(root_node, ss,  "", 0);
+  subtree_str(root_node, ss,  "");
   /*
   bool printed_ids[tree_size];
   std::vector<uint32_t> path;
