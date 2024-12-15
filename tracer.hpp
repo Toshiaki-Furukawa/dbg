@@ -31,10 +31,10 @@ private:
 
   std::unordered_map<uint32_t, uint64_t> stack_changes;
   std::unordered_map<uint32_t, uint64_t> heap_changes;
-  ChangeNode *parent;
   Registers regs;
   uint64_t addr;
   uint32_t id;
+  uint32_t branch_id;
 
 public:
   uint64_t root_heap_start;
@@ -45,6 +45,7 @@ public:
   uint32_t root_stack_size;
   uint64_t *root_stack_content; 
 
+  ChangeNode *parent;
   ChangeNode* main;
   ChangeNode* branch;
 
@@ -60,7 +61,12 @@ public:
 
   int restore_state(state_t&);
 
+  void set_branch_id(uint32_t);
+
+  uint32_t get_branch_id();
+
   void set_parent(ChangeNode*);
+
   void set_branch(ChangeNode*);
   
   void set_main(ChangeNode*);
@@ -89,7 +95,12 @@ public:
 
   int restore_state_by_id(uint32_t, state_t&);
 
+  uint32_t color_tree(ChangeNode*, uint32_t);
+
   void get_path(ChangeNode*, std::vector<uint32_t>&, uint32_t, uint32_t) const;
+  
+  //void subtree_str(ChangeNode*, std::stringstream&, std::string, uint32_t) const;
+  void subtree_str(ChangeNode*, std::stringstream&, std::string) const;
 
   std::string str() const;
 };
