@@ -45,17 +45,27 @@ public:
   uint32_t root_stack_size;
   uint64_t *root_stack_content; 
 
-  //chunk_t *root_heap;
-  //chunk_t *root_stack;
-  std::vector<ChangeNode*> children;
+  ChangeNode* main;
+  ChangeNode* branch;
 
-  ChangeNode(state_t& state);
+  ChangeNode(state_t&);
+
+  ChangeNode(ChangeNode*);
 
   ChangeNode(ChangeNode* parent, state_t& state);
+
+  void make_branch(uint32_t);
 
   void addChild(ChangeNode* child);
 
   int restore_state(state_t&);
+
+  void set_parent(ChangeNode*);
+  void set_branch(ChangeNode*);
+  
+  void set_main(ChangeNode*);
+  
+  void set_id(uint32_t);
 
   uint32_t get_id();
 
@@ -67,17 +77,19 @@ class ExecHistory {
 private:
   ChangeNode* root_node;
   ChangeNode* current_state;
+  uint32_t tree_size;    // used to compute id
+  uint32_t branch_numbers;
 
 public:
   ExecHistory();
 
   void set_root(state_t&);
 
-  void log(state_t&);
-
   void log_goto(state_t&);
 
   int restore_state_by_id(uint32_t, state_t&);
+
+  void get_path(ChangeNode*, std::vector<uint32_t>&, uint32_t, uint32_t) const;
 
   std::string str() const;
 };

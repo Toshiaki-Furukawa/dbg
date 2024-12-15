@@ -34,7 +34,9 @@ ChangeNode::ChangeNode(state_t& state) {
   stack_changes = {};
   heap_changes = {};
   parent = nullptr;
-  children = {};
+  //children = {};
+  main = nullptr;
+  branch = nullptr;
 
   regs = state.regs;
 }
@@ -55,7 +57,10 @@ ChangeNode::ChangeNode(ChangeNode* parent, state_t& state) {
   id = parent->get_id() + 1;
   regs = state.regs;
   addr = state.addr;
-  children = {};
+  //children = {};
+  main = nullptr;
+  branch = nullptr;
+
   stack_changes = {};
   heap_changes = {};
 
@@ -82,11 +87,37 @@ ChangeNode::ChangeNode(ChangeNode* parent, state_t& state) {
     stack_changes[i] = stack_words[i];
   }
 
-  parent->addChild(this);
+  //parent->addChild(this);
+  parent->main = this;
 }
 
-void ChangeNode::addChild(ChangeNode* child) {
-  children.emplace_back(child);
+ChangeNode::ChangeNode(ChangeNode* origin) {
+  stack_changes = origin->stack_changes;
+  heap_changes = origin->heap_changes;
+
+  parent = nullptr;
+  regs = origin->regs;
+
+  addr = origin->get_addr();
+  id = 0;
+  root_heap_start = origin->root_heap_start;
+  root_heap_size = origin->root_heap_size;
+  root_heap_content =  origin->root_heap_content;
+
+  root_stack_start = origin->root_stack_start;
+  root_stack_size = origin->root_stack_size;
+  root_stack_content =  origin->root_stack_content;
+
+  main = nullptr;
+  branch = nullptr;
+}
+
+void ChangeNode::make_branch(uint32_t id) {
+  this->branch = new ChangeNode(this);
+  this->branch->set_parent(this);
+
+  this->branch->set_id(id);
+
 }
 
 int ChangeNode::restore_state(state_t& state) {
@@ -104,6 +135,22 @@ int ChangeNode::restore_state(state_t& state) {
   return 1;
 }
 
+void ChangeNode::set_parent(ChangeNode* parent) {
+  this->parent = parent;
+}
+
+void ChangeNode::set_main(ChangeNode* main) {
+  this->main = main;
+}
+
+void ChangeNode::set_branch(ChangeNode* branch) {
+  this->branch = branch;
+}
+
+void ChangeNode::set_id(uint32_t id) {
+  this->id = id;
+}
+
 uint32_t ChangeNode::get_id() {
   return id;
 }
@@ -114,8 +161,7 @@ uint64_t ChangeNode::get_addr() {
 
 
 ExecHistory::ExecHistory() {
-  //state_log = {};
-  //ctree_root = nullptr;
+  tree_size = 0;
   root_node = nullptr;
   current_state = nullptr;
 }
@@ -123,17 +169,9 @@ ExecHistory::ExecHistory() {
 void ExecHistory::set_root(state_t& state) {
   root_node = new ChangeNode(state);
   current_state = root_node;
+
+  current_state->set_id(tree_size);
   return;
-}
-
-// WARNING: same as log_goto for now
-void ExecHistory::log(state_t& state) {
-  if (current_state == nullptr) {
-    return;
-  }
-
-  ChangeNode* next_node = new ChangeNode(current_state, state);
-  current_state = next_node;
 }
 
 void ExecHistory::log_goto(state_t& state) {
@@ -141,8 +179,20 @@ void ExecHistory::log_goto(state_t& state) {
     return;
   }
 
+  if (current_state->main != nullptr ) {
+    if (current_state->branch == nullptr) {
+      branch_numbers++;
+      tree_size++;
+      current_state->make_branch(tree_size);
+    }
+    current_state = current_state->branch;
+    return log_goto(state);
+  }
+
   ChangeNode* next_node = new ChangeNode(current_state, state);
   current_state = next_node;
+  tree_size++;
+  current_state->set_id(tree_size);
 }
 
 int ExecHistory::restore_state_by_id(uint32_t n, state_t& state) {
@@ -157,29 +207,62 @@ int ExecHistory::restore_state_by_id(uint32_t n, state_t& state) {
     auto current_node = queue.front();
     queue.pop_front();
     if (current_node->get_id() == n) {
+      this->current_state = current_node;
       return current_node->restore_state(state);
     }
-    
-    queue.insert(queue.end(), current_node->children.begin(), current_node->children.end());
+
+    if (current_node->main != nullptr) {
+      queue.push_back(current_node->main); 
+    }
+
+    if (current_node->branch != nullptr) {
+      queue.push_back(current_node->branch); 
+    }
   }
 
   return 0;
 }
 
 
-std::string ExecHistory::str() const {
-  std::stringstream ss;
-
-  std::deque<ChangeNode*> queue;
-  queue.push_back(root_node);
-  std::vector<uint32_t> known_nodes = {root_node->get_id()};
-
-  while (!queue.empty()) {
-    auto current_node = queue.front();
-    queue.pop_front();
-    ss << "Checkpoint nr. " << current_node->get_id() << " at PC: " << fmt::addr_64(current_node->get_addr()) <<  std::endl;
-    queue.insert(queue.end(), current_node->children.begin(), current_node->children.end());
+void ExecHistory::get_path(ChangeNode* start, std::vector<uint32_t>& ids, uint32_t n, uint32_t branch_count) const {
+  if (start->main == nullptr) {
+    //path << start->get_id() << "-    branch: " << n;
+    ids.emplace_back(start->get_id());
+    return;
   }
 
+  //path << start->get_id() << "-";
+  ids.emplace_back(start->get_id());
+
+  if (start->branch == nullptr) {
+    return get_path(start->main,ids, n, branch_count); 
+  } else {
+    if (n & (1 << branch_count)) {
+     return get_path(start->branch, ids, n, branch_count+1); 
+    }
+
+    return get_path(start->main, ids, n, branch_count+1); 
+  }
+}
+
+std::string ExecHistory::str() const {
+  std::stringstream ss;
+  if (root_node == nullptr) {
+    return ss.str();
+  }
+
+
+  std::vector<uint32_t> path;
+  for (uint32_t i = 0; i <= branch_numbers; i++) {
+    path.clear();
+
+    std::cout << i << std::endl;
+    get_path(root_node, path, i, 0);
+
+    for (const auto& id : path) {
+      ss << id << "-";
+    } 
+    ss << "  branch: " << i << std::endl;
+  }
   return ss.str();   
 }

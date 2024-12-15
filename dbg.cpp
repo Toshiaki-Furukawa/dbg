@@ -623,7 +623,6 @@ void Debugger::restore_state(uint32_t n) {
   }
 
   read_vmmap();
- 
   std::cout << "successfully restored state" << std::endl;
   return;
 }
