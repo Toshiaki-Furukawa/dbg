@@ -7,6 +7,7 @@ make
 ```
 
 ## usage
+
 ### run
 ```
 ./wg path/to/file
