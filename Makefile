@@ -49,9 +49,9 @@ test/test_dbg.o: test/test_dbg.cpp
 	$(CC) -c test/test_dbg.cpp -o test/test_dbg.o $(FLAGS)
 
 	
-examples:
-	gcc examples/test.c -o examples/test_32 -m32
-	gcc examples/test.c -o examples/test_64
+example_targets: examples/crackme.c
+	gcc examples/crackme.c -m32 -g -no-pie -o examples/crackme32
+	gcc examples/crackme.c -g -no-pie -o examples/crackme
 
 clean:
 	rm -f build/*
