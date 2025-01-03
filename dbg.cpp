@@ -220,6 +220,12 @@ Debugger::Debugger (std::string filename) : filename(filename) {
     return;
   }
 
+  if (filename.starts_with("./")) {
+    filename = filename.substr(2, filename.size()-2);
+  }
+
+  std::cout << std::filesystem::absolute(filename) << std::endl;
+
   elf = new ELF(std::filesystem::absolute(filename));
   elf_table = {};
 
